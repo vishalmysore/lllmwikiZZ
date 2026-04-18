@@ -43,4 +43,4 @@ Consider a technical document on global warming: A "Plain" query might give you 
 This is the shift from a machine that translates to a machine that architectures.
 
 ---
-*Authored by Vishal Mysore and the Antigravity AI Team.*
+
