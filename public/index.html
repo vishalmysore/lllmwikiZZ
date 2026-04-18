@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM WikiZZ — See How 5W1H Context Transforms LLM Answers</title>
+  <meta name="description" content="Upload a document, ask a question, and compare side-by-side how structured 5W1H context framing improves LLM responses from Anthropic, OpenAI, or Google Gemini.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body>
+  <div class="app-wrapper">
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-wrapper">
+        <div class="logo-icon">🧠</div>
+        <h1 class="logo-text">LLM Wiki<span>ZZ</span></h1>
+      </div>
+      <p class="tagline">
+        Upload a document, ask a question, and see how <strong>5W1H context framing</strong> transforms LLM answers — side by side.
+      </p>
+    </header>
+
+    <!-- Error Banner -->
+    <div id="error-banner" class="error-banner" role="alert">
+      <span class="error-banner-icon">⚠️</span>
+      <span id="error-text" class="error-banner-text"></span>
+      <button class="error-dismiss" onclick="dismissError()" aria-label="Dismiss error">✕</button>
+    </div>
+
+    <!-- Setup Section (Steps 1–4) -->
+    <div id="setup-section">
+
+      <!-- Step 1: API Key & Provider -->
+      <section class="step-card" id="step-provider">
+        <div class="step-header">
+          <div class="step-number">1</div>
+          <h2 class="step-title">Choose Your LLM Provider</h2>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="provider-select">Provider</label>
+            <select class="form-select" id="provider-select">
+              <option value="">Loading providers...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="model-select">Model</label>
+            <select class="form-select" id="model-select">
+              <option value="">Select a provider first</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="api-key">API Key</label>
+          <div class="password-wrapper">
+            <input type="password" class="form-input" id="api-key" placeholder="Paste your API key here — never stored server-side" autocomplete="off">
+            <button class="password-toggle" id="toggle-key-vis" type="button" aria-label="Toggle key visibility">👁</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 2: Upload Document -->
+      <section class="step-card" id="step-upload">
+        <div class="step-header">
+          <div class="step-number">2</div>
+          <h2 class="step-title">Upload Your Document</h2>
+        </div>
+
+        <div id="upload-zone" class="upload-zone">
+          <div class="upload-zone-content">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text"><strong>Drop a file here</strong> or click to browse</div>
+            <div class="upload-hint">PDF, DOCX, or TXT — up to 10 MB</div>
+          </div>
+          <input type="file" id="file-input" class="upload-input" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+        </div>
+
+        <!-- Uploading state -->
+        <div id="upload-spinner" class="upload-spinner">
+          <div class="upload-spinner-circle"></div>
+          <div class="upload-spinner-text">Extracting text...</div>
+        </div>
+
+        <!-- Upload success -->
+        <div id="upload-success" class="upload-success">
+          <div id="upload-filename" class="upload-filename"></div>
+          <div id="upload-meta" class="upload-meta"></div>
+          <button class="preview-toggle" id="preview-toggle" type="button">Show preview ▾</button>
+          <div id="upload-preview" class="upload-preview"></div>
+          <div id="truncation-warning" class="truncation-warning">
+            ⚠️ This document was truncated to 30,000 characters. Very long documents may lose content from the end.
+          </div>
+          <button class="upload-change-btn" id="change-file-btn" type="button">Change file</button>
+        </div>
+      </section>
+
+      <!-- Step 3: 5W1H Context -->
+      <section class="step-card" id="step-context">
+        <div class="step-header">
+          <div class="step-number">3</div>
+          <h2 class="step-title">5W1H Context (WikiZZ Framing)</h2>
+        </div>
+
+        <div class="wikizz-toggle-row">
+          <label class="toggle-label" id="wikizz-toggle-label">
+            <span>Use WikiZZ framing</span>
+          </label>
+          <div class="toggle-switch active" id="wikizz-toggle" role="checkbox" aria-checked="true" tabindex="0"></div>
+        </div>
+
+        <div class="wikizz-fields" id="wikizz-fields">
+          <div class="form-group">
+            <label class="form-label" for="field-who">
+              <span class="wikizz-field-icon icon-who">👤</span> Who
+            </label>
+            <input type="text" class="form-input" id="field-who" placeholder="e.g. HR manager at a 200-person tech company">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-what">
+              <span class="wikizz-field-icon icon-what">🎯</span> What
+            </label>
+            <input type="text" class="form-input" id="field-what" placeholder="e.g. Advise employee on parental leave steps">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-when">
+              <span class="wikizz-field-icon icon-when">⏰</span> When
+            </label>
+            <input type="text" class="form-input" id="field-when" placeholder="e.g. Employee just announced pregnancy, 6 months out">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-where">
+              <span class="wikizz-field-icon icon-where">📍</span> Where
+            </label>
+            <input type="text" class="form-input" id="field-where" placeholder="e.g. Canada, internal company policy">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-why">
+              <span class="wikizz-field-icon icon-why">💡</span> Why
+            </label>
+            <input type="text" class="form-input" id="field-why" placeholder="e.g. Need to give clear next-steps guidance">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="field-how">
+              <span class="wikizz-field-icon icon-how">⚙️</span> How
+            </label>
+            <input type="text" class="form-input" id="field-how" placeholder="e.g. Step-by-step, plain language, key dates highlighted">
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 4: Query -->
+      <section class="step-card" id="step-query">
+        <div class="step-header">
+          <div class="step-number">4</div>
+          <h2 class="step-title">Your Question</h2>
+        </div>
+        <div class="form-group">
+          <textarea class="form-textarea query-textarea" id="query-input" placeholder="e.g. What steps does this employee need to take for parental leave?"></textarea>
+        </div>
+        <button class="btn-primary" id="run-btn" type="button">
+          <span class="btn-text">Run Comparison</span>
+        </button>
+      </section>
+
+    </div><!-- /setup-section -->
+
+    <!-- Results Section -->
+    <section id="results-section" class="results-section">
+
+      <!-- Results Grid (side-by-side) -->
+      <div class="results-grid">
+        <!-- Plain Answer -->
+        <div class="result-column plain" id="result-plain">
+          <div class="result-column-header">
+            <span class="result-column-title">Without WikiZZ</span>
+            <span class="result-badge">Plain</span>
+          </div>
+          <div class="result-body" id="plain-answer">
+            <div class="skeleton skeleton-line" style="width:95%"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+          </div>
+          <div class="result-footer">
+            <div class="result-metrics">
+              <div class="metric"><span class="metric-icon">🔤</span> <span id="plain-tokens">—</span> tokens</div>
+              <div class="metric"><span class="metric-icon">⏱</span> <span id="plain-latency">—</span></div>
+            </div>
+            <button class="copy-btn" id="copy-plain-btn" type="button">Copy</button>
+          </div>
+        </div>
+
+        <!-- WikiZZ Answer -->
+        <div class="result-column wikizz" id="result-wikizz">
+          <div class="result-column-header">
+            <span class="result-column-title">With WikiZZ</span>
+            <span class="result-badge">5W1H</span>
+          </div>
+          <div class="result-body" id="wikizz-answer">
+            <div class="skeleton skeleton-line" style="width:95%"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-line"></div>
+          </div>
+          <div class="result-footer">
+            <div class="result-metrics">
+              <div class="metric"><span class="metric-icon">🔤</span> <span id="wikizz-tokens">—</span> tokens</div>
+              <div class="metric"><span class="metric-icon">⏱</span> <span id="wikizz-latency">—</span></div>
+            </div>
+            <button class="copy-btn" id="copy-wikizz-btn" type="button">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verdict -->
+      <div class="verdict-card" id="verdict-card">
+        <div class="verdict-header">
+          <span class="verdict-icon">⚖️</span>
+          <span class="verdict-title">What Changed?</span>
+        </div>
+        <p class="verdict-summary" id="verdict-summary">
+          <span class="skeleton skeleton-line" style="width:90%"></span>
+          <span class="skeleton skeleton-line" style="width:75%"></span>
+        </p>
+        <ul class="verdict-improvements" id="verdict-improvements"></ul>
+      </div>
+
+      <!-- Run Again -->
+      <div class="run-again-row">
+        <button class="btn-secondary" id="run-again-btn" type="button">← Run another query</button>
+      </div>
+
+    </section>
+
+  </div><!-- /app-wrapper -->
+
+  <script src="app.js"></script>
+</body>
+</html>
