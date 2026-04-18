@@ -1,46 +1,46 @@
-# Architecting Compounded Knowledge: Beyond Transient RAG with LLM WikiZZ
+# LLM WikiZZ: Teaching LLMs to Frame Before They Answer
 
-## The "Transient Knowledge" Problem
-Most current interactions with Large Language Models (LLMs) and documents are **transient**. Whether you are using a standard ChatGPT file upload or a sophisticated RAG (Retrieval-Augmented Generation) system, the knowledge is rediscovered from scratch for every single query. There is no accumulation, no compounding of understanding, and no persistent "frame" through which the data is viewed. 
+## The "Transient Knowledge" Paradox
+When you upload a document to a Large Language Model (LLM), you are usually trapped in a cycle of transient RAG. The system rediscovers the document from scratch for every query, neglecting the "Context Debt" that builds up when an LLM doesn't truly understand the fundamental frame of the data. 
 
-As Andrej Karpathy noted in his **LLM-Wiki** manifesto, the core limitation of modern RAG is that the LLM is constantly "rediscovering knowledge from scratch... nothing is built up."
+**LLM WikiZZ** is an open-source tool designed to break this cycle. Inspired by Andrej Karpathy's vision of a compounding "LLM-Wiki," it forces an autonomous **Discovery Phase** before a single question is answered. It teaches the LLM to architect its own scaffolding before it starts building the response.
 
 ## What is LLM WikiZZ?
-**LLM WikiZZ** is an experimental extension of the LLM-Wiki philosophy. While the original concept focuses on a growing markdown-based knowledge base, LLM WikiZZ focuses on the **Discovery and Framing** phase. 
+WikiZZ is an experimental logic layer that sits between the user and the LLM. Instead of direct prompting, it implements a structured **5W1H Wiki Frame**:
 
-It asks a fundamental question: *If the LLM is the architect, why are we manually building the scaffolding?*
+1.  **Who**: The target audience/persona context.
+2.  **What**: The core mission objective.
+3.  **When**: The temporal and urgency context.
+4.  **Where**: The situational and environmental context.
+5.  **Why**: The underlying motivation/value.
+6.  **How**: The structural and formatting requirement.
 
-### The 5W1H Framework
-Instead of just asking a question, WikiZZ forces the LLM to first define a **Wiki Frame** based on the 5W1H methodology:
-1.  **Who**: Who is the audience or persona?
-2.  **What**: What is the ultimate objective?
-3.  **When**: What are the timing constraints?
-4.  **Where**: What is the situational context?
-5.  **Why**: Why does this answer matter?
-6.  **How**: How should the knowledge be structured?
+## How WikiZZ Transforms the "Wiki" Workflow
 
-## How WikiZZ Extends the "Wiki" Concept
+### 1. Autonomous Scaffolding
+In traditional workflows, the user is the "Clerk," manually specifying the context for every query. In WikiZZ, the LLM becomes the "Architect." By clicking "Generate Wiki," the LLM analyzes the entire document and autonomously populates the 5W1H frame. This turns raw data into a persistent, shared mental model between the human and the machine.
 
-### 1. Autonomous Scaffolding (The Discovery Phase)
-In the original Karpathy concept, a human might guide the ingestion. LLM WikiZZ implements an **Autonomous Discovery Phase**. By clicking "Generate Wiki", the LLM analyzes the document's DNA and automatically populates the 5W1H frame. This removes the "clerical grunt work" and ensures that every subsequent query is viewed through a consistent, professionally-curated lens.
+### 2. The Contrast Engine
+One of the hardest parts of evaluating AI performance is seeing the "value-add" of context. WikiZZ runs a side-by-side comparison:
+*   **Plain Mode**: Standard, context-less RAG.
+*   **WikiZZ Mode**: The query refined through the persistent 5W1H window.
 
-### 2. Side-by-Side Validation (The Contrast Engine)
-One of the hardest things in Prompt Engineering is proving that a "better" prompt actually produced a better result. WikiZZ includes a twin-engine execution model:
-*   **Plain Mode**: Standard, un-framed RAG.
-*   **WikiZZ Mode**: Framing the query through the synthesized 5W1H Wiki context.
+Users can see exactly how the framing adds technical specificity and logical organization that plain queries often hallucinate away.
 
-Users can see, in real-time, how the context framing adds technical specificity and logical organization that plain queries often miss.
-
-### 3. The "Judge" Architecture
-WikiZZ doesn't just show you two answers; it uses a high-intelligence **Evaluator LLM** to compare them. It identifies semantic improvements, flagging exactly *what* changed—whether it's increased specificity, better concision, or improved situational awareness.
+### 3. The LLM Jury
+The system includes a high-intelligence **Evaluator LLM** that acts as a judge. It semantically analyzes the delta between the two answers, identifying specifically what improved—whether it was situational relevance, concision, or technical depth.
 
 ## Technical Architecture
-*   **Zero-Server/Static-First**: The application runs entirely in the browser using `FileReader` for document parsing. It prioritizes privacy; your data never stays on a server.
-*   **Secure CORS Proxy**: It leverages a Cloudflare Worker proxy (the same pattern used in the `QuantumStudio` project) to securely route API requests to providers like **NVIDIA NIM, Anthropic, OpenAI, and Google Gemini**. 
-*   **Compounded Meta-Data**: The 5W1H context is stored in the session, allowing it to compound its value over multiple questions.
+*   **Zero-Server/Static-First**: The app runs entirely in your browser. Privacy is prioritized; your documents are parsed locally via `FileReader` and never stored.
+*   **Secure CORS Proxying**: It leverages a secure Cloudflare Worker to route API requests to high-performance providers like **NVIDIA NIM, Anthropic, and Gemini**.
+*   **Persistent Context**: Once generated, the WikiZZ Frame persists for the session, compounding its value over multiple queries.
 
-## Conclusion: The Future of Curation
-The goal of LLM WikiZZ is to move the human from "Translator" to "Architect." By letting the LLM build the Wiki framing, we allow the system to reach into the deeper intent of the document. As we move toward more complex agentic workflows, the **Discovery Phase** seen in WikiZZ will become the standard for how we interact with all unstructured data.
+## Conclusion: Turning Translators into Architects
+LLM WikiZZ proves that the most valuable thing an LLM can do isn't answering the question—it's **understanding the request**. 
+
+Consider a technical document on global warming: A "Plain" query might give you a standard list of environmental impacts. But with **WikiZZ Framing**, the LLM recognizes its "Why" and "What" as providing a technical guide for policymakers. Suddenly, that simple list is restructured into a mapped directory of chemical emissions—all without the user asking for that extra depth. 
+
+This is the shift from a machine that translates to a machine that architectures.
 
 ---
 *Authored by Vishal Mysore and the Antigravity AI Team.*
