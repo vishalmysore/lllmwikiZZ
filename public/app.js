@@ -87,6 +87,7 @@ const runAgainBtn = $('#run-again-btn');
 const copyPlainBtn = $('#copy-plain-btn');
 const copyWikizzBtn = $('#copy-wikizz-btn');
 const proxyUrlInput = $('#proxy-url');
+const resetProxyBtn = $('#reset-proxy-btn');
 
 // Proxy Input Fallback
 const DEFAULT_PROXY = 'https://rough-tree-aee4.vishalmysore.workers.dev';
@@ -203,7 +204,15 @@ function bindEvents() {
 
   // Proxy input change
   proxyUrlInput.addEventListener('change', () => {
-    localStorage.setItem('quantum_ai_custom_proxy', proxyUrlInput.value.trim());
+    let val = proxyUrlInput.value.trim();
+    if (val && !val.startsWith('http')) val = 'https://' + val;
+    proxyUrlInput.value = val;
+    localStorage.setItem('quantum_ai_custom_proxy', val);
+  });
+
+  resetProxyBtn.addEventListener('click', () => {
+    proxyUrlInput.value = DEFAULT_PROXY;
+    localStorage.setItem('quantum_ai_custom_proxy', DEFAULT_PROXY);
   });
 }
 
