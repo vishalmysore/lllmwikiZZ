@@ -260,19 +260,6 @@ async function runQuery() {
   const query = queryInput.value.trim();
 
   let zeespec = null;
-  if (wikizzEnabled) {
-    zeespec = {
-      who: $('#field-who').value.trim(),
-      what: $('#field-what').value.trim(),
-      when: $('#field-when').value.trim(),
-      where: $('#field-where').value.trim(),
-      why: $('#field-why').value.trim(),
-      how: $('#field-how').value.trim()
-    };
-    if (!zeespec.who || !zeespec.what) {
-      return showError('Please fill in at least the "Who" and "What" fields for WikiZZ framing.');
-    }
-  }
 
   setupSection.style.display = 'none';
   resultsSection.classList.add('visible');
@@ -285,6 +272,27 @@ async function runQuery() {
   document.querySelector('.results-grid').style.gridTemplateColumns = wikizzEnabled ? '1fr 1fr' : '1fr';
 
   try {
+    if (wikizzEnabled) {
+      const generatorSystem = `You are a helpful analyst extracting the 5W1H (Who, What, When, Where, Why, How) context from a user's question to build a proper Wiki framing context.
+Look at the user's question and the document snippet, and deduce reasonable, concise values for the 5W1H variables. If you don't know a specific variable, infer the most likely scenario or write "Unspecified".
+Return ONLY a valid JSON object with the exact keys: "who", "what", "when", "where", "why", "how". Do not include any other text or markdown formatting outside the JSON.`;
+      
+      $('#generated-zeespec').textContent = '🤖 Generating 5W1H Context from the LLM...';
+      $('#generated-zeespec').style.display = 'block';
+
+      const generatorResult = await callLLM(providerDef, apiKey, model, generatorSystem, `Question: ${query}\n\nDocument snippet (for context): ${currentDocumentText.substring(0, 1000)}`, 400);
+      
+      try {
+        let jsonStr = generatorResult.text.trim();
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (jsonMatch) jsonStr = jsonMatch[0];
+        zeespec = JSON.parse(jsonStr);
+        
+        $('#generated-zeespec').textContent = `Generated Context:\n${JSON.stringify(zeespec, null, 2)}`;
+      } catch (e) {
+        throw new Error('Failed to parse the LLM-generated 5W1H context. Please try again.');
+      }
+    }
     const plainPrompt = buildPlainPrompt(currentDocumentText, query);
     
     // Plain LLM Call

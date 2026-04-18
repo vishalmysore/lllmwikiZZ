@@ -111,42 +111,8 @@
         </div>
 
         <div class="wikizz-fields" id="wikizz-fields">
-          <div class="form-group">
-            <label class="form-label" for="field-who">
-              <span class="wikizz-field-icon icon-who">👤</span> Who
-            </label>
-            <input type="text" class="form-input" id="field-who" placeholder="e.g. HR manager at a 200-person tech company">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="field-what">
-              <span class="wikizz-field-icon icon-what">🎯</span> What
-            </label>
-            <input type="text" class="form-input" id="field-what" placeholder="e.g. Advise employee on parental leave steps">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="field-when">
-              <span class="wikizz-field-icon icon-when">⏰</span> When
-            </label>
-            <input type="text" class="form-input" id="field-when" placeholder="e.g. Employee just announced pregnancy, 6 months out">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="field-where">
-              <span class="wikizz-field-icon icon-where">📍</span> Where
-            </label>
-            <input type="text" class="form-input" id="field-where" placeholder="e.g. Canada, internal company policy">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="field-why">
-              <span class="wikizz-field-icon icon-why">💡</span> Why
-            </label>
-            <input type="text" class="form-input" id="field-why" placeholder="e.g. Need to give clear next-steps guidance">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="field-how">
-              <span class="wikizz-field-icon icon-how">⚙️</span> How
-            </label>
-            <input type="text" class="form-input" id="field-how" placeholder="e.g. Step-by-step, plain language, key dates highlighted">
-          </div>
+          <p class="wikizz-auto-hint">The LLM will automatically generate the <b>Who, What, When, Where, Why, and How</b> framing context based on your document and question.</p>
+          <div id="generated-zeespec" class="generated-zeespec" style="display:none; margin-top: 10px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; font-size: 0.9em; font-family: monospace; white-space: pre-wrap;"></div>
         </div>
       </section>
 
