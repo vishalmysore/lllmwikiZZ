@@ -284,29 +284,38 @@ body::before {
 
 /* Password input container */
 .password-wrapper {
-  position: relative;
+  display: flex;
+  gap: var(--space-xs);
 }
 
 .password-wrapper .form-input {
-  padding-right: 3rem;
+  flex: 1;
 }
 
-.password-toggle {
-  position: absolute;
-  right: 0.7rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
+.password-toggle, .test-key-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0.25rem;
-  transition: color var(--transition-fast);
+  padding: 0 0.8rem;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.password-toggle:hover {
+.password-toggle:hover, .test-key-btn:hover {
+  border-color: var(--border-focus);
   color: var(--text-secondary);
+  background: var(--bg-card-hover);
+}
+
+.test-key-btn {
+  font-weight: 600;
+  min-width: 80px;
 }
 
 /* --- Upload Zone --- */

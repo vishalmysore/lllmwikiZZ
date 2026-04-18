@@ -39,11 +39,11 @@ const PROVIDERS = [
     name: 'NVIDIA NIM',
     keyPlaceholder: 'nvapi-...',
     models: [
-      { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct (recommended)' },
-      { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Llama 3.1 Nemotron 70B' },
-      { id: 'meta/llama-3.1-405b-instruct', name: 'Llama 3.1 405B Instruct' }
+      { id: 'nvidia/nemotron-nano-12b-v2-vl', name: 'Nano 12B V2 (tested in Quantum)' },
+      { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct' },
+      { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Llama 3.1 Nemotron 70B' }
     ],
-    endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions'
+    endpoint: 'https://integrate.api.nvidia.com/v1'
   }
 ];
 
@@ -89,6 +89,7 @@ const copyPlainBtn = $('#copy-plain-btn');
 const copyWikizzBtn = $('#copy-wikizz-btn');
 const proxyUrlInput = $('#proxy-url');
 const resetProxyBtn = $('#reset-proxy-btn');
+const testKeyBtn = $('#test-key-btn');
 
 // Proxy Input Fallback
 const DEFAULT_PROXY = 'https://rough-tree-aee4.vishalmysore.workers.dev';
@@ -202,6 +203,7 @@ function bindEvents() {
 
   copyPlainBtn.addEventListener('click', () => copyToClipboard(plainAnswer.textContent, copyPlainBtn));
   copyWikizzBtn.addEventListener('click', () => copyToClipboard(wikizzAnswer.textContent, copyWikizzBtn));
+  testKeyBtn.addEventListener('click', testConnection);
 
   // Proxy input change
   proxyUrlInput.addEventListener('change', () => {
@@ -437,14 +439,45 @@ function getProxyHeaders(targetUrl) {
   };
 }
 
+async function testConnection() {
+  dismissError();
+  const apiKey = apiKeyInput.value.trim();
+  const providerDef = PROVIDERS.find(p => p.id === providerSelect.value);
+  const model = modelSelect.value;
+
+  if (!apiKey) return showError('Please enter an API key to test.');
+
+  testKeyBtn.textContent = '⏳...';
+  testKeyBtn.disabled = true;
+
+  try {
+    const result = await callLLM(providerDef, apiKey, model, "You are a tester.", "Say OK", 10);
+    if (result.text.toLowerCase().includes('ok')) {
+      testKeyBtn.textContent = '✅';
+      setTimeout(() => { testKeyBtn.textContent = '🧪 Test'; testKeyBtn.disabled = false; }, 2000);
+    } else {
+      throw new Error("Unexpected response from LLM");
+    }
+  } catch (err) {
+    showError(`Connection failed: ${err.message}`);
+    testKeyBtn.textContent = '❌';
+    setTimeout(() => { testKeyBtn.textContent = '🧪 Test'; testKeyBtn.disabled = false; }, 3000);
+  }
+}
+
 async function callLLM(providerDef, apiKey, model, system, userMessage, maxTokens = 2048) {
   const start = Date.now();
   let text = '';
   let tokensUsed = 0;
 
+  let apiEndpoint = providerDef.endpoint;
+  if (providerDef.id === 'nvidia' && !apiEndpoint.endsWith('/chat/completions')) {
+    apiEndpoint += '/chat/completions';
+  }
+
   const targetUrl = providerDef.id === 'gemini' 
-    ? `${providerDef.endpoint}/v1beta/models/${model}:generateContent?key=${apiKey}`
-    : providerDef.endpoint;
+    ? `${apiEndpoint}/v1beta/models/${model}:generateContent?key=${apiKey}`
+    : apiEndpoint;
 
   const fetchUrl = proxyUrlInput.value.trim() || DEFAULT_PROXY;
   const proxyHeaders = getProxyHeaders(targetUrl);
