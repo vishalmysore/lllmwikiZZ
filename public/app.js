@@ -29,7 +29,7 @@ const PROVIDERS = [
     name: 'Google Gemini',
     keyPlaceholder: 'AIza...',
     models: [
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
       { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
     ],
     endpoint: 'https://generativelanguage.googleapis.com'
@@ -40,7 +40,8 @@ const PROVIDERS = [
     keyPlaceholder: 'nvapi-...',
     models: [
       { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct (recommended)' },
-      { id: 'nvidia/nemotron-4-340b-instruct', name: 'Nemotron 4 340B Instruct' }
+      { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Llama 3.1 Nemotron 70B' },
+      { id: 'meta/llama-3.1-405b-instruct', name: 'Llama 3.1 405B Instruct' }
     ],
     endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions'
   }
