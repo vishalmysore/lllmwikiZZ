@@ -84,6 +84,18 @@
             <button class="password-toggle" id="toggle-key-vis" type="button" aria-label="Toggle key visibility">👁</button>
           </div>
         </div>
+
+        <!-- Proxy Settings -->
+        <details class="proxy-settings">
+          <summary>⚙️ Proxy Settings</summary>
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label" for="proxy-url">Custom CORS Proxy URL</label>
+            <input type="text" class="form-input" id="proxy-url" placeholder="https://your-worker.workers.dev/">
+            <small style="opacity: 0.7; font-size: 0.8em; display: block; margin-top: 5px;">
+              Used to bypass CORS errors. Ensure your worker handles POST requests to this URL.
+            </small>
+          </div>
+        </details>
       </section>
 
       <!-- Step 2: Upload Document -->

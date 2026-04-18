@@ -86,9 +86,10 @@ const errorText = $('#error-text');
 const runAgainBtn = $('#run-again-btn');
 const copyPlainBtn = $('#copy-plain-btn');
 const copyWikizzBtn = $('#copy-wikizz-btn');
+const proxyUrlInput = $('#proxy-url');
 
-// Proxy Input
-const defaultProxy = localStorage.getItem('quantum_ai_custom_proxy') || 'https://rough-tree-aee4.vishalmysore.workers.dev';
+// Proxy Input Fallback
+const DEFAULT_PROXY = 'https://rough-tree-aee4.vishalmysore.workers.dev';
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', init);
@@ -96,6 +97,14 @@ document.addEventListener('DOMContentLoaded', init);
 function init() {
   loadProviders();
   bindEvents();
+  
+  // Sync proxy settings
+  const savedProxy = localStorage.getItem('quantum_ai_custom_proxy');
+  if (savedProxy) {
+    proxyUrlInput.value = savedProxy;
+  } else {
+    proxyUrlInput.value = DEFAULT_PROXY;
+  }
 }
 
 function loadProviders() {
@@ -191,6 +200,11 @@ function bindEvents() {
 
   copyPlainBtn.addEventListener('click', () => copyToClipboard(plainAnswer.textContent, copyPlainBtn));
   copyWikizzBtn.addEventListener('click', () => copyToClipboard(wikizzAnswer.textContent, copyWikizzBtn));
+
+  // Proxy input change
+  proxyUrlInput.addEventListener('change', () => {
+    localStorage.setItem('quantum_ai_custom_proxy', proxyUrlInput.value.trim());
+  });
 }
 
 function toggleWikizz() {
@@ -422,8 +436,11 @@ async function callLLM(providerDef, apiKey, model, system, userMessage, maxToken
     ? `${providerDef.endpoint}/v1beta/models/${model}:generateContent?key=${apiKey}`
     : providerDef.endpoint;
 
-  const fetchUrl = defaultProxy;
+  const fetchUrl = proxyUrlInput.value.trim() || DEFAULT_PROXY;
   const proxyHeaders = getProxyHeaders(targetUrl);
+
+  console.log(`[Proxy] Fetching via: ${fetchUrl}`);
+  console.log(`[Proxy] Target URL: ${targetUrl}`);
 
   let headers = {
     'Content-Type': 'application/json',
