@@ -1,10 +1,53 @@
 /**
- * LLM WikiZZ — Frontend Application
+ * LLM WikiZZ — Frontend Application (Zero-Server Architecture)
  */
 
+// --- Configuration & Providers ---
+const PROVIDERS = [
+  {
+    id: 'anthropic',
+    name: 'Anthropic',
+    keyPlaceholder: 'sk-ant-...',
+    models: [
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (recommended)' },
+      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (fast)' }
+    ],
+    endpoint: 'https://api.anthropic.com/v1/messages'
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    keyPlaceholder: 'sk-...',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o (recommended)' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini (fast)' }
+    ],
+    endpoint: 'https://api.openai.com/v1/chat/completions'
+  },
+  {
+    id: 'gemini',
+    name: 'Google Gemini',
+    keyPlaceholder: 'AIza...',
+    models: [
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
+    ],
+    endpoint: 'https://generativelanguage.googleapis.com'
+  },
+  {
+    id: 'nvidia',
+    name: 'NVIDIA NIM',
+    keyPlaceholder: 'nvapi-...',
+    models: [
+      { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct (recommended)' },
+      { id: 'nvidia/nemotron-4-340b-instruct', name: 'Nemotron 4 340B Instruct' }
+    ],
+    endpoint: 'https://integrate.api.nvidia.com/v1/chat/completions'
+  }
+];
+
 // --- State ---
-let providers = [];
-let currentDocumentId = null;
+let currentDocumentText = null;
 let wikizzEnabled = true;
 
 // --- DOM references ---
@@ -43,34 +86,28 @@ const runAgainBtn = $('#run-again-btn');
 const copyPlainBtn = $('#copy-plain-btn');
 const copyWikizzBtn = $('#copy-wikizz-btn');
 
+// Proxy Input
+const defaultProxy = localStorage.getItem('quantum_ai_custom_proxy') || 'https://rough-tree-aee4.vishalmysore.workers.dev';
+
 // --- Init ---
 document.addEventListener('DOMContentLoaded', init);
 
-async function init() {
-  await loadProviders();
+function init() {
+  loadProviders();
   bindEvents();
 }
 
-// --- Load Providers ---
-async function loadProviders() {
-  try {
-    const res = await fetch('/api/providers');
-    const data = await res.json();
-    providers = data.providers;
+function loadProviders() {
+  providerSelect.innerHTML = PROVIDERS.map(p =>
+    `<option value="${p.id}">${p.name}</option>`
+  ).join('');
 
-    providerSelect.innerHTML = providers.map(p =>
-      `<option value="${p.id}">${p.name}</option>`
-    ).join('');
-
-    updateModels();
-    updateKeyPlaceholder();
-  } catch (err) {
-    showError('Failed to load providers. Is the server running?');
-  }
+  updateModels();
+  updateKeyPlaceholder();
 }
 
 function updateModels() {
-  const provider = providers.find(p => p.id === providerSelect.value);
+  const provider = PROVIDERS.find(p => p.id === providerSelect.value);
   if (!provider) return;
 
   modelSelect.innerHTML = provider.models.map(m =>
@@ -79,7 +116,7 @@ function updateModels() {
 }
 
 function updateKeyPlaceholder() {
-  const provider = providers.find(p => p.id === providerSelect.value);
+  const provider = PROVIDERS.find(p => p.id === providerSelect.value);
   if (provider) {
     apiKeyInput.placeholder = provider.keyPlaceholder;
   }
@@ -87,32 +124,25 @@ function updateKeyPlaceholder() {
 
 // --- Event Bindings ---
 function bindEvents() {
-  // Provider change
   providerSelect.addEventListener('change', () => {
     updateModels();
     updateKeyPlaceholder();
   });
 
-  // API key visibility toggle
   toggleKeyVis.addEventListener('click', () => {
     const isPassword = apiKeyInput.type === 'password';
     apiKeyInput.type = isPassword ? 'text' : 'password';
     toggleKeyVis.textContent = isPassword ? '🙈' : '👁';
   });
 
-  // Upload zone — click
   uploadZone.addEventListener('click', () => fileInput.click());
-
-  // Upload zone — drag & drop
   uploadZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadZone.classList.add('drag-over');
   });
-
   uploadZone.addEventListener('dragleave', () => {
     uploadZone.classList.remove('drag-over');
   });
-
   uploadZone.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadZone.classList.remove('drag-over');
@@ -120,30 +150,24 @@ function bindEvents() {
       handleFileUpload(e.dataTransfer.files[0]);
     }
   });
-
-  // File input change
   fileInput.addEventListener('change', () => {
     if (fileInput.files.length > 0) {
       handleFileUpload(fileInput.files[0]);
     }
   });
 
-  // Preview toggle
   previewToggle.addEventListener('click', () => {
-    const preview = uploadPreview;
-    const visible = preview.classList.toggle('visible');
+    const visible = uploadPreview.classList.toggle('visible');
     previewToggle.textContent = visible ? 'Hide preview ▴' : 'Show preview ▾';
   });
 
-  // Change file
   changeFileBtn.addEventListener('click', () => {
-    currentDocumentId = null;
+    currentDocumentText = null;
     uploadSuccess.classList.remove('visible');
     uploadZone.style.display = '';
     fileInput.value = '';
   });
 
-  // WikiZZ toggle
   wikizzToggle.addEventListener('click', toggleWikizz);
   wikizzToggle.addEventListener('keydown', (e) => {
     if (e.key === ' ' || e.key === 'Enter') {
@@ -152,18 +176,14 @@ function bindEvents() {
     }
   });
 
-  // Run button
   runBtn.addEventListener('click', runQuery);
 
-  // Run again
   runAgainBtn.addEventListener('click', () => {
     resultsSection.classList.remove('visible');
     setupSection.style.display = '';
-    // Reset skeleton loaders
     resetResults();
   });
 
-  // Copy buttons
   copyPlainBtn.addEventListener('click', () => copyToClipboard(plainAnswer.textContent, copyPlainBtn));
   copyWikizzBtn.addEventListener('click', () => copyToClipboard(wikizzAnswer.textContent, copyWikizzBtn));
 }
@@ -179,15 +199,8 @@ function toggleWikizz() {
 async function handleFileUpload(file) {
   dismissError();
 
-  // Client-side validation
-  const allowedTypes = [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain'
-  ];
-
-  if (!allowedTypes.includes(file.type)) {
-    showError('Please upload a PDF, DOCX, or TXT file.');
+  if (file.type !== 'text/plain') {
+    showError('Only TXT files are supported in this browser-only version.');
     return;
   }
 
@@ -196,81 +209,59 @@ async function handleFileUpload(file) {
     return;
   }
 
-  // Show spinner
   uploadZone.style.display = 'none';
   uploadSpinner.classList.add('visible');
 
-  const formData = new FormData();
-  formData.append('file', file);
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let text = e.target.result;
+    let truncated = false;
 
-  try {
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Upload failed.');
+    // Truncate logic locally (e.g. 30k chars)
+    if (text.length > 30000) {
+      text = text.substring(0, 30000);
+      truncated = true;
     }
 
-    // Store document ID
-    currentDocumentId = data.documentId;
+    currentDocumentText = text;
 
-    // Show success
     uploadSpinner.classList.remove('visible');
-    uploadFilename.textContent = `📎 ${data.filename}`;
-    uploadMeta.textContent = `${data.charCount.toLocaleString()} characters extracted`;
-    uploadPreview.textContent = data.preview;
+    uploadFilename.textContent = `📎 ${file.name}`;
+    uploadMeta.textContent = `${text.length.toLocaleString()} characters extracted`;
+    uploadPreview.textContent = text.substring(0, 500) + '...';
     uploadSuccess.classList.add('visible');
 
-    if (data.truncated) {
+    if (truncated) {
       truncationWarning.classList.add('visible');
     } else {
       truncationWarning.classList.remove('visible');
     }
-
-  } catch (err) {
+  };
+  reader.onerror = () => {
     uploadSpinner.classList.remove('visible');
     uploadZone.style.display = '';
-    showError(err.message);
-  }
+    showError('Error reading file.');
+  };
+  reader.readAsText(file);
 }
 
 // --- Run Query ---
 async function runQuery() {
   dismissError();
 
-  // Validation
-  if (!providerSelect.value) {
-    showError('Please select a provider.');
-    return;
-  }
-  if (!apiKeyInput.value.trim()) {
-    showError('Please enter your API key.');
-    return;
-  }
-  if (!currentDocumentId) {
-    showError('Please upload a document first.');
-    return;
-  }
-  if (!queryInput.value.trim()) {
-    showError('Please enter a question.');
-    return;
-  }
+  if (!providerSelect.value) return showError('Please select a provider.');
+  if (!apiKeyInput.value.trim()) return showError('Please enter your API key.');
+  if (!currentDocumentText) return showError('Please upload a document first.');
+  if (!queryInput.value.trim()) return showError('Please enter a question.');
 
-  // Build request body
-  const body = {
-    documentId: currentDocumentId,
-    apiKey: apiKeyInput.value.trim(),
-    provider: providerSelect.value,
-    model: modelSelect.value,
-    query: queryInput.value.trim()
-  };
+  const apiKey = apiKeyInput.value.trim();
+  const providerDef = PROVIDERS.find(p => p.id === providerSelect.value);
+  const model = modelSelect.value;
+  const query = queryInput.value.trim();
 
+  let zeespec = null;
   if (wikizzEnabled) {
-    body.zeespec = {
+    zeespec = {
       who: $('#field-who').value.trim(),
       what: $('#field-what').value.trim(),
       when: $('#field-when').value.trim(),
@@ -278,14 +269,11 @@ async function runQuery() {
       why: $('#field-why').value.trim(),
       how: $('#field-how').value.trim()
     };
-
-    if (!body.zeespec.who || !body.zeespec.what) {
-      showError('Please fill in at least the "Who" and "What" fields for WikiZZ framing.');
-      return;
+    if (!zeespec.who || !zeespec.what) {
+      return showError('Please fill in at least the "Who" and "What" fields for WikiZZ framing.');
     }
   }
 
-  // Switch to running state
   setupSection.style.display = 'none';
   resultsSection.classList.add('visible');
   resetResults();
@@ -293,45 +281,43 @@ async function runQuery() {
   runBtn.classList.add('btn-loading');
   runBtn.disabled = true;
 
-  // Show/hide wikizz column
-  const wikizzColumn = $('#result-wikizz');
-  wikizzColumn.style.display = wikizzEnabled ? '' : 'none';
-
-  // Adjust grid
-  const resultsGrid = document.querySelector('.results-grid');
-  resultsGrid.style.gridTemplateColumns = wikizzEnabled ? '1fr 1fr' : '1fr';
+  $('#result-wikizz').style.display = wikizzEnabled ? '' : 'none';
+  document.querySelector('.results-grid').style.gridTemplateColumns = wikizzEnabled ? '1fr 1fr' : '1fr';
 
   try {
-    const res = await fetch('/api/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    const plainPrompt = buildPlainPrompt(currentDocumentText, query);
+    
+    // Plain LLM Call
+    const plainResult = await callLLM(providerDef, apiKey, model, plainPrompt.system, plainPrompt.userMessage);
+    plainAnswer.textContent = plainResult.text;
+    plainTokens.textContent = plainResult.tokensUsed.toLocaleString();
+    plainLatency.textContent = `${(plainResult.latencyMs / 1000).toFixed(1)}s`;
 
-    const data = await res.json();
+    if (wikizzEnabled) {
+      const wikizzPrompt = buildWikizzPrompt(currentDocumentText, query, zeespec);
+      
+      // WikiZZ LLM Call
+      const wikizzResult = await callLLM(providerDef, apiKey, model, wikizzPrompt.system, wikizzPrompt.userMessage);
+      wikizzAnswer.textContent = wikizzResult.text;
+      wikizzTokens.textContent = wikizzResult.tokensUsed.toLocaleString();
+      wikizzLatency.textContent = `${(wikizzResult.latencyMs / 1000).toFixed(1)}s`;
 
-    if (!res.ok) {
-      throw new Error(data.error || 'Query failed.');
-    }
-
-    // Populate plain answer
-    plainAnswer.textContent = data.plain.answer;
-    plainTokens.textContent = data.plain.tokensUsed.toLocaleString();
-    plainLatency.textContent = `${(data.plain.latencyMs / 1000).toFixed(1)}s`;
-
-    if (wikizzEnabled && data.wikizz) {
-      // Populate WikiZZ answer
-      wikizzAnswer.textContent = data.wikizz.answer;
-      wikizzTokens.textContent = data.wikizz.tokensUsed.toLocaleString();
-      wikizzLatency.textContent = `${(data.wikizz.latencyMs / 1000).toFixed(1)}s`;
-
-      // Populate verdict
-      if (data.verdict) {
-        verdictSummary.textContent = data.verdict.summary;
-        verdictImprovements.innerHTML = data.verdict.improvements
-          .map(imp => `<li>${escapeHtml(imp)}</li>`)
-          .join('');
+      // Verdict
+      const verdictPrompt = buildVerdictPrompt(query, plainResult.text, wikizzResult.text);
+      const verdictResult = await callLLM(providerDef, apiKey, model, verdictPrompt.system, verdictPrompt.userMessage, 512);
+      
+      let parsedVerdict;
+      try {
+        let jsonStr = verdictResult.text.trim();
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (jsonMatch) jsonStr = jsonMatch[0];
+        parsedVerdict = JSON.parse(jsonStr);
+      } catch (e) {
+        parsedVerdict = { summary: verdictResult.text, improvements: [] };
       }
+
+      verdictSummary.textContent = parsedVerdict.summary || 'No summary generated.';
+      verdictImprovements.innerHTML = (parsedVerdict.improvements || []).map(imp => `<li>${escapeHtml(imp)}</li>`).join('');
       $('#verdict-card').style.display = '';
     } else {
       $('#verdict-card').style.display = 'none';
@@ -339,7 +325,6 @@ async function runQuery() {
 
   } catch (err) {
     showError(err.message);
-    // Go back to setup
     resultsSection.classList.remove('visible');
     setupSection.style.display = '';
   } finally {
@@ -354,7 +339,6 @@ function resetResults() {
     <div class="skeleton skeleton-line"></div>
     <div class="skeleton skeleton-line"></div>
     <div class="skeleton skeleton-line"></div>
-    <div class="skeleton skeleton-line"></div>
   `;
   plainAnswer.innerHTML = skeletonHTML;
   wikizzAnswer.innerHTML = skeletonHTML;
@@ -362,14 +346,10 @@ function resetResults() {
   plainLatency.textContent = '—';
   wikizzTokens.textContent = '—';
   wikizzLatency.textContent = '—';
-  verdictSummary.innerHTML = `
-    <span class="skeleton skeleton-line" style="width:90%"></span>
-    <span class="skeleton skeleton-line" style="width:75%"></span>
-  `;
+  verdictSummary.innerHTML = `<span class="skeleton skeleton-line" style="width:90%"></span>`;
   verdictImprovements.innerHTML = '';
 }
 
-// --- Error Handling ---
 function showError(message) {
   errorText.textContent = message;
   errorBanner.classList.add('visible');
@@ -380,7 +360,6 @@ function dismissError() {
   errorBanner.classList.remove('visible');
 }
 
-// --- Utilities ---
 function copyToClipboard(text, btn) {
   navigator.clipboard.writeText(text).then(() => {
     const originalText = btn.textContent;
@@ -393,4 +372,128 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// ==========================================
+// LLM CLIENT LOGIC
+// ==========================================
+
+function getProxyHeaders(targetUrl) {
+  return {
+    'x-target-url': targetUrl
+  };
+}
+
+async function callLLM(providerDef, apiKey, model, system, userMessage, maxTokens = 2048) {
+  const start = Date.now();
+  let text = '';
+  let tokensUsed = 0;
+
+  const targetUrl = providerDef.id === 'gemini' 
+    ? `${providerDef.endpoint}/v1beta/models/${model}:generateContent?key=${apiKey}`
+    : providerDef.endpoint;
+
+  const fetchUrl = defaultProxy;
+  const proxyHeaders = getProxyHeaders(targetUrl);
+
+  let headers = {
+    'Content-Type': 'application/json',
+    ...proxyHeaders
+  };
+
+  let body = {};
+
+  if (providerDef.id === 'anthropic') {
+    headers['x-api-key'] = apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+    body = {
+      model, max_tokens: maxTokens, system,
+      messages: [{ role: 'user', content: userMessage }]
+    };
+  } else if (providerDef.id === 'openai' || providerDef.id === 'nvidia') {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    body = {
+      model, max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage }
+      ]
+    };
+  } else if (providerDef.id === 'gemini') {
+    // Gemini key goes in URL
+    body = {
+      contents: [{ parts: [{ text: system + '\n\n' + userMessage }] }],
+      generationConfig: { maxOutputTokens: maxTokens }
+    };
+  }
+
+  const res = await fetch(fetchUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = data.error?.message || JSON.stringify(data);
+    throw new Error(`API error (${res.status}): ${msg}`);
+  }
+
+  if (providerDef.id === 'anthropic') {
+    text = data.content?.[0]?.text || '';
+    tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+  } else if (providerDef.id === 'openai' || providerDef.id === 'nvidia') {
+    text = data.choices?.[0]?.message?.content || '';
+    tokensUsed = (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0);
+  } else if (providerDef.id === 'gemini') {
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    tokensUsed = (data.usageMetadata?.promptTokenCount || 0) + (data.usageMetadata?.candidatesTokenCount || 0);
+  }
+
+  return { text, tokensUsed, latencyMs: Date.now() - start };
+}
+
+// ==========================================
+// PROMPT BUILDER LOGIC
+// ==========================================
+
+const SYSTEM_BASE = 'You are a helpful assistant. Answer the user\'s question based only on the provided document.';
+
+function buildPlainPrompt(documentText, query) {
+  return {
+    system: SYSTEM_BASE,
+    userMessage: `Document:\n${documentText}\n\nQuestion: ${query}`
+  };
+}
+
+function buildWikizzPrompt(documentText, query, zeespec) {
+  const system = `${SYSTEM_BASE}\n
+Context about this request:
+- Who is asking / who this is for: ${zeespec.who}
+- What they need to accomplish: ${zeespec.what}
+- When / timing context: ${zeespec.when}
+- Where / situational context: ${zeespec.where}
+- Why this matters: ${zeespec.why}
+- How the answer should be structured: ${zeespec.how}\n
+Use this context to tailor your answer specifically to this person's situation and needs.`;
+
+  return { system, userMessage: `Document:\n${documentText}\n\nQuestion: ${query}` };
+}
+
+function buildVerdictPrompt(query, plainAnswer, wikizzAnswer) {
+  const system = `You are an expert evaluator. Compare two LLM answers to the same question — one generated without context framing ("Plain") and one with structured 5W1H context ("WikiZZ"). Explain specifically what changed and whether the WikiZZ framing improved the answer.\n
+Respond in this JSON format only:
+{
+  "summary": "A 2-3 sentence explanation...",
+  "improvements": ["improvement 1", "improvement 2"]
+}
+Return valid JSON only, no markdown fencing.`;
+
+  const userMessage = `Original question: ${query}\n
+--- Plain Answer (no framing) ---
+${plainAnswer}\n
+--- WikiZZ Answer (5W1H framing) ---
+${wikizzAnswer}`;
+
+  return { system, userMessage };
 }
