@@ -32,6 +32,31 @@
     <!-- Setup Section (Steps 1–4) -->
     <div id="setup-section">
 
+      <!-- Sample Documents Section -->
+      <section class="step-card sample-docs-card">
+        <h2 class="step-title" style="font-size: 1.1em; margin-bottom: 15px;">📥 Try Sample Documents</h2>
+        <div class="sample-links">
+          <a href="samples/Sholay.md" download class="sample-btn">Sholay.md (Medium)</a>
+          <a href="samples/globalwarming.md" download class="sample-btn">GlobalWarming.md (Large)</a>
+          <a href="samples/IndianCookingmethods.md" download class="sample-btn">CookingMethods.md (Medium)</a>
+          <a href="samples/AIEthics_Small.txt" download class="sample-btn">AIEthics.txt (Small)</a>
+        </div>
+        <style>
+          .sample-links { display: flex; flex-wrap: wrap; gap: 10px; }
+          .sample-btn { 
+            padding: 8px 12px; 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #eee;
+            text-decoration: none;
+            font-size: 0.85em;
+            transition: all 0.2s;
+          }
+          .sample-btn:hover { background: rgba(255,255,255,0.15); border-color: #6366f1; }
+        </style>
+      </section>
+
       <!-- Step 1: API Key & Provider -->
       <section class="step-card" id="step-provider">
         <div class="step-header">

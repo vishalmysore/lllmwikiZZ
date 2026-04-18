@@ -1,0 +1,5 @@
+# AI Ethics and Governance
+This is a small snippet for quick testing of simple context extraction.
+- Topic: Ethics in Artificial Intelligence
+- Status: Research Phase
+- Key concern: Transparency in algorithmic decision making.
