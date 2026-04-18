@@ -39,7 +39,7 @@ const PROVIDERS = [
     name: 'NVIDIA NIM',
     keyPlaceholder: 'nvapi-...',
     models: [
-      { id: 'nvidia/nemotron-nano-12b-v2-vl', name: 'Nano 12B V2 (tested in Quantum)' },
+      { id: 'nvidia/nemotron-nano-12b-v2-vl', name: 'Nano 12B V2' },
       { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B Instruct' },
       { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Llama 3.1 Nemotron 70B' }
     ],
@@ -229,8 +229,10 @@ function toggleWikizz() {
 async function handleFileUpload(file) {
   dismissError();
 
-  if (file.type !== 'text/plain') {
-    showError('Only TXT files are supported in this browser-only version.');
+  const isText = file.type === 'text/plain' || file.type === 'text/markdown' || file.name.endsWith('.md') || file.name.endsWith('.txt');
+
+  if (!isText) {
+    showError('Only TXT and MD files are supported in this browser-only version.');
     return;
   }
 
