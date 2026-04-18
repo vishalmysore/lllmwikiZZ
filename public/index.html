@@ -96,24 +96,22 @@
         </div>
       </section>
 
-      <!-- Step 3: 5W1H Context -->
+      <!-- Step 3: Generate Wiki -->
       <section class="step-card" id="step-context">
         <div class="step-header">
           <div class="step-number">3</div>
-          <h2 class="step-title">5W1H Context (WikiZZ Framing)</h2>
+          <h2 class="step-title">Generate Document Wiki</h2>
         </div>
+        
+        <p class="wikizz-auto-hint" style="margin-bottom: 15px;">
+          Extract the fundamental 5W1H context (Who, What, When, Where, Why, How) from your document to build a persistent Wiki framing.
+        </p>
 
-        <div class="wikizz-toggle-row">
-          <label class="toggle-label" id="wikizz-toggle-label">
-            <span>Use WikiZZ framing</span>
-          </label>
-          <div class="toggle-switch active" id="wikizz-toggle" role="checkbox" aria-checked="true" tabindex="0"></div>
-        </div>
+        <button class="btn-secondary" id="generate-wiki-btn" type="button" style="width: auto;">
+          ✨ Generate Wiki Context
+        </button>
 
-        <div class="wikizz-fields" id="wikizz-fields">
-          <p class="wikizz-auto-hint">The LLM will automatically generate the <b>Who, What, When, Where, Why, and How</b> framing context based on your document and question.</p>
-          <div id="generated-zeespec" class="generated-zeespec" style="display:none; margin-top: 10px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; font-size: 0.9em; font-family: monospace; white-space: pre-wrap;"></div>
-        </div>
+        <div id="generated-zeespec" class="generated-zeespec" style="display:none; margin-top: 15px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; font-size: 0.9em; font-family: monospace; white-space: pre-wrap;"></div>
       </section>
 
       <!-- Step 4: Query -->
@@ -122,6 +120,14 @@
           <div class="step-number">4</div>
           <h2 class="step-title">Your Question</h2>
         </div>
+
+        <div class="wikizz-toggle-row" style="margin-bottom: 15px;">
+          <label class="toggle-label" id="wikizz-toggle-label">
+            <span>Use Wiki context in comparison</span>
+          </label>
+          <div class="toggle-switch active" id="wikizz-toggle" role="checkbox" aria-checked="true" tabindex="0"></div>
+        </div>
+
         <div class="form-group">
           <textarea class="form-textarea query-textarea" id="query-input" placeholder="e.g. What steps does this employee need to take for parental leave?"></textarea>
         </div>

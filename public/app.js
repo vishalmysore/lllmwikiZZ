@@ -49,6 +49,7 @@ const PROVIDERS = [
 // --- State ---
 let currentDocumentText = null;
 let wikizzEnabled = true;
+let globalZeespec = null;
 
 // --- DOM references ---
 const $ = (sel) => document.querySelector(sel);
@@ -66,8 +67,8 @@ const uploadPreview = $('#upload-preview');
 const previewToggle = $('#preview-toggle');
 const truncationWarning = $('#truncation-warning');
 const changeFileBtn = $('#change-file-btn');
+const generateWikiBtn = $('#generate-wiki-btn');
 const wikizzToggle = $('#wikizz-toggle');
-const wikizzFields = $('#wikizz-fields');
 const queryInput = $('#query-input');
 const runBtn = $('#run-btn');
 const setupSection = $('#setup-section');
@@ -163,10 +164,14 @@ function bindEvents() {
 
   changeFileBtn.addEventListener('click', () => {
     currentDocumentText = null;
+    globalZeespec = null;
+    $('#generated-zeespec').style.display = 'none';
     uploadSuccess.classList.remove('visible');
     uploadZone.style.display = '';
     fileInput.value = '';
   });
+
+  generateWikiBtn.addEventListener('click', generateWiki);
 
   wikizzToggle.addEventListener('click', toggleWikizz);
   wikizzToggle.addEventListener('keydown', (e) => {
@@ -192,7 +197,6 @@ function toggleWikizz() {
   wikizzEnabled = !wikizzEnabled;
   wikizzToggle.classList.toggle('active', wikizzEnabled);
   wikizzToggle.setAttribute('aria-checked', wikizzEnabled);
-  wikizzFields.classList.toggle('collapsed', !wikizzEnabled);
 }
 
 // --- File Upload ---
@@ -245,6 +249,45 @@ async function handleFileUpload(file) {
   reader.readAsText(file);
 }
 
+// --- Generate Wiki ---
+async function generateWiki() {
+  dismissError();
+  if (!providerSelect.value) return showError('Please select a provider.');
+  if (!apiKeyInput.value.trim()) return showError('Please enter your API key.');
+  if (!currentDocumentText) return showError('Please upload a document first.');
+
+  const apiKey = apiKeyInput.value.trim();
+  const providerDef = PROVIDERS.find(p => p.id === providerSelect.value);
+  const model = modelSelect.value;
+  
+  generateWikiBtn.disabled = true;
+  generateWikiBtn.textContent = 'Generating...';
+  
+  const generatorSystem = `You are a helpful analyst extracting the 5W1H (Who, What, When, Where, Why, How) context from a document to build a proper Wiki framing context.
+Look at the document snippet, and deduce reasonable, concise values for the 5W1H variables. If you don't know a specific variable, infer the most likely scenario or write "Unspecified".
+Return ONLY a valid JSON object with the exact keys: "who", "what", "when", "where", "why", "how". Do not include any other text or markdown formatting outside the JSON.`;
+
+  $('#generated-zeespec').textContent = '🤖 Generating 5W1H Context from the LLM...';
+  $('#generated-zeespec').style.display = 'block';
+
+  try {
+    const generatorResult = await callLLM(providerDef, apiKey, model, generatorSystem, `Document snippet (for context): ${currentDocumentText.substring(0, 3000)}`, 400);
+
+    let jsonStr = generatorResult.text.trim();
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+    globalZeespec = JSON.parse(jsonStr);
+    
+    $('#generated-zeespec').textContent = JSON.stringify(globalZeespec, null, 2);
+  } catch (err) {
+    showError('Failed to parse the LLM-generated 5W1H context. Please try again.');
+    $('#generated-zeespec').style.display = 'none';
+  } finally {
+    generateWikiBtn.disabled = false;
+    generateWikiBtn.textContent = '✨ Generate Wiki Context';
+  }
+}
+
 // --- Run Query ---
 async function runQuery() {
   dismissError();
@@ -253,13 +296,12 @@ async function runQuery() {
   if (!apiKeyInput.value.trim()) return showError('Please enter your API key.');
   if (!currentDocumentText) return showError('Please upload a document first.');
   if (!queryInput.value.trim()) return showError('Please enter a question.');
+  if (wikizzEnabled && !globalZeespec) return showError('Please click "Generate Wiki Context" first, or disable Wiki comparison.');
 
   const apiKey = apiKeyInput.value.trim();
   const providerDef = PROVIDERS.find(p => p.id === providerSelect.value);
   const model = modelSelect.value;
   const query = queryInput.value.trim();
-
-  let zeespec = null;
 
   setupSection.style.display = 'none';
   resultsSection.classList.add('visible');
@@ -272,27 +314,6 @@ async function runQuery() {
   document.querySelector('.results-grid').style.gridTemplateColumns = wikizzEnabled ? '1fr 1fr' : '1fr';
 
   try {
-    if (wikizzEnabled) {
-      const generatorSystem = `You are a helpful analyst extracting the 5W1H (Who, What, When, Where, Why, How) context from a user's question to build a proper Wiki framing context.
-Look at the user's question and the document snippet, and deduce reasonable, concise values for the 5W1H variables. If you don't know a specific variable, infer the most likely scenario or write "Unspecified".
-Return ONLY a valid JSON object with the exact keys: "who", "what", "when", "where", "why", "how". Do not include any other text or markdown formatting outside the JSON.`;
-      
-      $('#generated-zeespec').textContent = '🤖 Generating 5W1H Context from the LLM...';
-      $('#generated-zeespec').style.display = 'block';
-
-      const generatorResult = await callLLM(providerDef, apiKey, model, generatorSystem, `Question: ${query}\n\nDocument snippet (for context): ${currentDocumentText.substring(0, 1000)}`, 400);
-      
-      try {
-        let jsonStr = generatorResult.text.trim();
-        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-        if (jsonMatch) jsonStr = jsonMatch[0];
-        zeespec = JSON.parse(jsonStr);
-        
-        $('#generated-zeespec').textContent = `Generated Context:\n${JSON.stringify(zeespec, null, 2)}`;
-      } catch (e) {
-        throw new Error('Failed to parse the LLM-generated 5W1H context. Please try again.');
-      }
-    }
     const plainPrompt = buildPlainPrompt(currentDocumentText, query);
     
     // Plain LLM Call
@@ -302,7 +323,7 @@ Return ONLY a valid JSON object with the exact keys: "who", "what", "when", "whe
     plainLatency.textContent = `${(plainResult.latencyMs / 1000).toFixed(1)}s`;
 
     if (wikizzEnabled) {
-      const wikizzPrompt = buildWikizzPrompt(currentDocumentText, query, zeespec);
+      const wikizzPrompt = buildWikizzPrompt(currentDocumentText, query, globalZeespec);
       
       // WikiZZ LLM Call
       const wikizzResult = await callLLM(providerDef, apiKey, model, wikizzPrompt.system, wikizzPrompt.userMessage);
