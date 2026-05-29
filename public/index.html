@@ -6,6 +6,24 @@
   <title>LLM WikiZZ — See How 5W1H Context Transforms LLM Answers</title>
   <meta name="description" content="Upload a document, ask a question, and compare side-by-side how structured 5W1H context framing improves LLM responses from Anthropic, OpenAI, or Google Gemini.">
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Register COI service worker so SharedArrayBuffer / WebGPU works on any host.
+    // Only reload once after the SW activates to pick up the new headers.
+    if ('serviceWorker' in navigator && !crossOriginIsolated) {
+      navigator.serviceWorker.register('./coi-serviceworker.js').then(reg => {
+        // If there's a new SW waiting or installing, reload once it activates.
+        const sw = reg.installing || reg.waiting;
+        if (sw) {
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'activated') location.reload();
+          });
+        } else if (reg.active) {
+          // SW already active but page isn't isolated yet — one reload should fix it.
+          location.reload();
+        }
+      }).catch(() => {});
+    }
+  </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
 </head>
 <body>
@@ -77,27 +95,46 @@
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="api-key">API Key</label>
-          <div class="password-wrapper">
-            <input type="password" class="form-input" id="api-key" placeholder="Paste your API key here — never stored server-side" autocomplete="off">
-            <button class="password-toggle" id="toggle-key-vis" type="button" aria-label="Toggle key visibility" title="Toggle visibility">👁</button>
-            <button class="test-key-btn" id="test-key-btn" type="button" title="Test connection">🧪 Test</button>
+
+        <!-- Cloud API key (hidden for WebLLM) -->
+        <div id="cloud-api-section">
+          <div class="form-group">
+            <label class="form-label" for="api-key">API Key</label>
+            <div class="password-wrapper">
+              <input type="password" class="form-input" id="api-key" placeholder="Paste your API key here — never stored server-side" autocomplete="off">
+              <button class="password-toggle" id="toggle-key-vis" type="button" aria-label="Toggle key visibility" title="Toggle visibility">👁</button>
+              <button class="test-key-btn" id="test-key-btn" type="button" title="Test connection">🧪 Test</button>
+            </div>
           </div>
+          <!-- Proxy Settings -->
+          <details class="proxy-settings">
+            <summary>⚙️ Proxy Settings</summary>
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label" for="proxy-url">Custom CORS Proxy URL</label>
+              <input type="text" class="form-input" id="proxy-url" placeholder="https://your-worker.workers.dev/">
+              <button type="button" id="reset-proxy-btn" class="btn-secondary" style="margin-top: 8px; font-size: 0.75em; padding: 4px 8px;">Reset to Default Proxy</button>
+              <small style="opacity: 0.7; font-size: 0.8em; display: block; margin-top: 5px;">
+                Used to bypass CORS errors. Ensure your worker handles POST requests to this URL.
+              </small>
+            </div>
+          </details>
         </div>
 
-        <!-- Proxy Settings -->
-        <details class="proxy-settings">
-          <summary>⚙️ Proxy Settings</summary>
-          <div class="form-group" style="margin-top: 10px;">
-            <label class="form-label" for="proxy-url">Custom CORS Proxy URL</label>
-            <input type="text" class="form-input" id="proxy-url" placeholder="https://your-worker.workers.dev/">
-            <button type="button" id="reset-proxy-btn" class="btn-secondary" style="margin-top: 8px; font-size: 0.75em; padding: 4px 8px;">Reset to Default Proxy</button>
-            <small style="opacity: 0.7; font-size: 0.8em; display: block; margin-top: 5px;">
-              Used to bypass CORS errors. Ensure your worker handles POST requests to this URL.
-            </small>
+        <!-- WebLLM local model loader (shown only for WebLLM provider) -->
+        <div id="webllm-section" style="display:none;">
+          <p style="font-size:0.9em; opacity:0.8; margin-bottom:12px;">
+            Runs 100% in your browser via WebGPU — no API key, no server. Requires Chrome 113+ with a GPU.<br>
+            Model is downloaded once and cached locally (~1–2 GB).
+          </p>
+          <button class="btn-secondary" id="load-model-btn" type="button">⬇ Load Model</button>
+          <span id="webllm-status" style="margin-left:12px; font-size:0.85em; opacity:0.7;"></span>
+          <div id="webllm-progress-bar-wrap" style="display:none; margin-top:10px;">
+            <div style="background:rgba(255,255,255,0.1); border-radius:4px; height:6px; overflow:hidden;">
+              <div id="webllm-progress-bar" style="height:100%; width:0%; background:#6366f1; transition:width 0.3s;"></div>
+            </div>
+            <div id="webllm-progress-text" style="font-size:0.78em; opacity:0.65; margin-top:4px;"></div>
           </div>
-        </details>
+        </div>
       </section>
 
       <!-- Step 2: Upload Document -->
@@ -249,6 +286,6 @@
 
   </div><!-- /app-wrapper -->
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
