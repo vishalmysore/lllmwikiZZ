@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OKF Wiki Builder — Turn any document into an Open Knowledge Format bundle</title>
+  <meta name="description" content="Upload a document and generate a spec-conformant Open Knowledge Format (OKF) knowledge bundle: markdown concept files with YAML frontmatter, index.md and log.md. Runs 100% in your browser.">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    // Register COI service worker so SharedArrayBuffer / WebGPU works on any host (shared with the WikiZZ page).
+    if ('serviceWorker' in navigator && !crossOriginIsolated) {
+      navigator.serviceWorker.register('./coi-serviceworker.js').then(reg => {
+        const sw = reg.installing || reg.waiting;
+        if (sw) {
+          sw.addEventListener('statechange', () => { if (sw.state === 'activated') location.reload(); });
+        } else if (reg.active) {
+          location.reload();
+        }
+      }).catch(() => {});
+    }
+  </script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+  <style>
+    /* OKF-specific styling — layered on top of the shared style.css design tokens. */
+    .top-nav {
+      display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .top-nav a {
+      padding: 7px 16px; border-radius: 999px; text-decoration: none; font-size: 0.85em;
+      color: var(--text-secondary); border: 1px solid var(--border-medium);
+      background: rgba(255,255,255,0.03); transition: all var(--transition-fast);
+    }
+    .top-nav a:hover { color: var(--text-primary); border-color: var(--border-focus); }
+    .top-nav a.active {
+      color: #fff; border-color: transparent; background: var(--gradient-primary);
+    }
+    .okf-spec-card { background: var(--surface-plain); }
+    .okf-spec-card ul { margin: 8px 0 0 18px; line-height: 1.7; color: var(--text-secondary); font-size: 0.9em; }
+    .okf-spec-card code {
+      font-family: var(--font-mono); font-size: 0.85em; background: rgba(255,255,255,0.07);
+      padding: 1px 5px; border-radius: 4px; color: var(--text-accent);
+    }
+    .build-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+    .build-row .btn-primary, .build-row .btn-secondary { width: auto; }
+    .build-hint { font-size: 0.82em; color: var(--text-muted); margin-top: 10px; }
+
+    .okf-tree {
+      font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-input);
+      border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+      padding: 14px 16px; margin-bottom: 18px; color: var(--text-secondary); overflow-x: auto;
+    }
+    .okf-tree-root { color: var(--text-accent); font-weight: 600; display: block; margin-bottom: 4px; }
+    .okf-tree-item { white-space: pre; }
+
+    .okf-file-card {
+      background: var(--bg-card); border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md); margin-bottom: 16px; overflow: hidden;
+    }
+    .okf-file-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-subtle);
+    }
+    .okf-file-name { font-family: var(--font-mono); font-size: 0.85em; color: var(--text-primary); }
+    .okf-file-actions { display: flex; gap: 8px; }
+    .okf-file-body {
+      margin: 0; padding: 14px 16px; font-family: var(--font-mono); font-size: 0.8em;
+      line-height: 1.6; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word;
+      max-height: 420px; overflow: auto;
+    }
+    .download-all-row { margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+
+    <!-- Cross-page nav -->
+    <nav class="top-nav">
+      <a href="index.html">🧠 WikiZZ (5W1H compare)</a>
+      <a href="okf.html" class="active">📚 OKF Wiki Builder</a>
+    </nav>
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-wrapper">
+        <div class="logo-icon">📚</div>
+        <h1 class="logo-text">OKF <span>Wiki Builder</span></h1>
+      </div>
+      <p class="tagline">
+        Turn any document into an <strong>Open Knowledge Format</strong> bundle — markdown concept files
+        with YAML frontmatter, ready for humans and agents. Runs 100% in your browser.
+      </p>
+    </header>
+
+    <!-- Error Banner -->
+    <div id="error-banner" class="error-banner" role="alert">
+      <span class="error-banner-icon">⚠️</span>
+      <span id="error-text" class="error-banner-text"></span>
+      <button class="error-dismiss" onclick="dismissError()" aria-label="Dismiss error">✕</button>
+    </div>
+
+    <!-- What is OKF -->
+    <section class="step-card okf-spec-card">
+      <h2 class="step-title" style="font-size: 1.05em; margin-bottom: 8px;">📖 What is OKF?</h2>
+      <p style="font-size: 0.9em; color: var(--text-secondary); line-height: 1.6;">
+        <a href="https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md" target="_blank" rel="noopener" style="color: var(--text-accent);">Open Knowledge Format</a>
+        is a minimal, open way to represent knowledge as a directory of markdown files. No SDK, no schema registry — <code>git clone</code> and <code>cat</code> are enough.
+      </p>
+      <ul>
+        <li>Each <code>&lt;concept&gt;.md</code> = YAML frontmatter (required <code>type</code>, plus <code>title</code> / <code>description</code> / <code>tags</code> / <code>timestamp</code>) + a markdown body.</li>
+        <li>Optional body headings: <code># Schema</code>, <code># Examples</code>, <code># Citations</code>.</li>
+        <li><code>index.md</code> lists the concepts; the root one declares <code>okf_version</code>.</li>
+        <li><code>log.md</code> records changes, newest date first.</li>
+        <li>Cross-links: bundle-absolute <code>/other.md</code> or relative markdown paths.</li>
+      </ul>
+    </section>
+
+    <!-- Step 1: Provider (only needed for Smart Build) -->
+    <section class="step-card" id="step-provider">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <h2 class="step-title">LLM Provider <span style="font-weight:400; font-size:0.7em; color:var(--text-muted);">(only for Smart Build)</span></h2>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="provider-select">Provider</label>
+          <select class="form-select" id="provider-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="model-select">Model</label>
+          <select class="form-select" id="model-select"></select>
+        </div>
+      </div>
+
+      <div id="cloud-api-section">
+        <div class="form-group">
+          <label class="form-label" for="api-key">API Key</label>
+          <div class="password-wrapper">
+            <input type="password" class="form-input" id="api-key" placeholder="Paste your API key — never stored server-side" autocomplete="off">
+            <button class="password-toggle" id="toggle-key-vis" type="button" aria-label="Toggle key visibility" title="Toggle visibility">👁</button>
+          </div>
+        </div>
+        <details class="proxy-settings">
+          <summary>⚙️ Proxy Settings</summary>
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label" for="proxy-url">Custom CORS Proxy URL</label>
+            <input type="text" class="form-input" id="proxy-url" placeholder="https://your-worker.workers.dev/">
+            <button type="button" id="reset-proxy-btn" class="btn-secondary" style="margin-top: 8px; font-size: 0.75em; padding: 4px 8px;">Reset to Default Proxy</button>
+          </div>
+        </details>
+      </div>
+
+      <div id="webllm-section" style="display:none;">
+        <p style="font-size:0.9em; opacity:0.8; margin-bottom:12px;">
+          Runs 100% in your browser via WebGPU — no API key, no server. Requires Chrome 113+ with a GPU.<br>
+          Model is downloaded once and cached locally (~1–2 GB).
+        </p>
+        <button class="btn-secondary" id="load-model-btn" type="button">⬇ Load Model</button>
+        <span id="webllm-status" style="margin-left:12px; font-size:0.85em; opacity:0.7;"></span>
+        <div id="webllm-progress-bar-wrap" style="display:none; margin-top:10px;">
+          <div style="background:rgba(255,255,255,0.1); border-radius:4px; height:6px; overflow:hidden;">
+            <div id="webllm-progress-bar" style="height:100%; width:0%; background:#6366f1; transition:width 0.3s;"></div>
+          </div>
+          <div id="webllm-progress-text" style="font-size:0.78em; opacity:0.65; margin-top:4px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: Upload -->
+    <section class="step-card" id="step-upload">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <h2 class="step-title">Upload Your Document</h2>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <span style="font-size: 0.85em; color: var(--text-muted);">Try a sample: </span>
+        <a href="samples/Sholay.md" download style="color: var(--text-accent); font-size: 0.85em; margin-right: 10px;">Sholay.md</a>
+        <a href="samples/globalwarming.md" download style="color: var(--text-accent); font-size: 0.85em; margin-right: 10px;">GlobalWarming.md</a>
+        <a href="samples/IndianCookingmethods.md" download style="color: var(--text-accent); font-size: 0.85em;">CookingMethods.md</a>
+      </div>
+
+      <div id="upload-zone" class="upload-zone">
+        <div class="upload-zone-content">
+          <div class="upload-icon">📄</div>
+          <div class="upload-text"><strong>Drop a text or markdown file here</strong> or click to browse</div>
+          <div class="upload-hint">TXT, MD only (up to 10 MB)</div>
+        </div>
+        <input type="file" id="file-input" class="upload-input" accept=".txt,.md,text/plain,text/markdown">
+      </div>
+
+      <div id="upload-success" class="upload-success">
+        <div id="upload-filename" class="upload-filename"></div>
+        <div id="upload-meta" class="upload-meta"></div>
+        <button class="upload-change-btn" id="change-file-btn" type="button">Change file</button>
+      </div>
+    </section>
+
+    <!-- Step 3: Build -->
+    <section class="step-card" id="step-build">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <h2 class="step-title">Build the OKF Bundle</h2>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="bundle-name">Bundle name (directory)</label>
+        <input type="text" class="form-input" id="bundle-name" placeholder="knowledge-bundle">
+      </div>
+
+      <div class="build-row">
+        <button class="btn-secondary" id="quick-build-btn" type="button">⚡ Quick Build (headings, no API)</button>
+        <button class="btn-primary" id="smart-build-btn" type="button">
+          <span class="btn-text">✨ Smart Build (LLM)</span>
+        </button>
+      </div>
+      <p class="build-hint">
+        <strong>Quick Build</strong> splits the document by markdown headings — instant, fully offline.
+        <strong>Smart Build</strong> asks your chosen LLM to extract self-contained concepts.
+        Both emit the same spec-conformant OKF structure.
+      </p>
+    </section>
+
+    <!-- Bundle Output -->
+    <section class="step-card" id="bundle-section" style="display:none;">
+      <div class="step-header">
+        <div class="step-number">✓</div>
+        <h2 class="step-title">Your OKF Bundle</h2>
+      </div>
+      <div class="download-all-row">
+        <button class="btn-primary" id="download-zip-btn" type="button" style="width:auto;">⬇ Download bundle (.zip)</button>
+      </div>
+      <div id="bundle-output"></div>
+    </section>
+
+  </div><!-- /app-wrapper -->
+
+  <script type="module" src="okf.js"></script>
+</body>
+</html>

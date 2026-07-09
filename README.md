@@ -38,3 +38,23 @@ Bring your own API key — keys are never stored server-side.
 - **File Parsing**: pdf-parse, mammoth
 - **LLM**: Native fetch (no SDK dependencies)
 - **Storage**: In-memory (no database)
+
+## 📚 OKF Wiki Builder (new module)
+
+A second, independent page — [`public/okf.html`](public/okf.html) — turns any uploaded
+document into an **[Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)**
+knowledge bundle: a directory of markdown concept files with YAML frontmatter, plus
+`index.md` and `log.md`. It reuses the same provider/WebLLM plumbing but does not touch
+the WikiZZ comparison flow.
+
+Two build modes:
+
+- **⚡ Quick Build** — splits the document by markdown headings. Instant, fully offline, no API key.
+- **✨ Smart Build** — asks your chosen LLM (cloud or local WebLLM) to extract self-contained concepts.
+
+Both feed the same deterministic serializer, so the output is always spec-conformant:
+every concept file carries a non-empty `type`, the root `index.md` declares `okf_version: "0.1"`,
+and cross-links use bundle-absolute `/concept.md` paths. Download individual files or the whole
+bundle as a `.zip` (built client-side, no dependencies).
+
+Open it at `/okf.html`, or use the nav links at the top of either page.
