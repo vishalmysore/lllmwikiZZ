@@ -2,6 +2,8 @@
  * LLM WikiZZ — Frontend Application (Zero-Server Architecture)
  */
 
+import { isPdf, extractPdfText } from './pdf-extract.js';
+
 // --- Configuration & Providers ---
 const WEBLLM_MODELS = [
   { id: 'Llama-3.2-1B-Instruct-q4f32_1-MLC',  name: 'Llama 3.2 1B  (~0.9 GB) — fastest' },
@@ -250,32 +252,46 @@ async function handleFileUpload(file) {
   dismissError();
 
   const isText = file.type === 'text/plain' || file.type === 'text/markdown' || file.name.endsWith('.md') || file.name.endsWith('.txt');
-  if (!isText) { showError('Only TXT and MD files are supported.'); return; }
+  if (!isText && !isPdf(file)) { showError('Only PDF, TXT and MD files are supported.'); return; }
   if (file.size > 10 * 1024 * 1024) { showError('File must be under 10MB.'); return; }
 
   uploadZone.style.display = 'none';
   uploadSpinner.classList.add('visible');
+  const spinnerText = uploadSpinner.querySelector('.upload-spinner-text');
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    let text = e.target.result;
+  try {
+    let text;
+    if (isPdf(file)) {
+      if (spinnerText) spinnerText.textContent = 'Extracting text from PDF...';
+      const buf = await file.arrayBuffer();
+      text = await extractPdfText(buf, { onProgress: (p, t) => {
+        if (spinnerText) spinnerText.textContent = `Extracting PDF... page ${p}/${t}`;
+      }});
+      if (!text || text.length < 20) {
+        throw new Error('Could not extract text — this PDF may be scanned/image-only.');
+      }
+    } else {
+      text = await file.text();
+    }
+
     let truncated = false;
     if (text.length > 30000) { text = text.substring(0, 30000); truncated = true; }
 
     currentDocumentText = text;
     uploadSpinner.classList.remove('visible');
+    if (spinnerText) spinnerText.textContent = 'Extracting text...';
     uploadFilename.textContent = `📎 ${file.name}`;
     uploadMeta.textContent = `${text.length.toLocaleString()} characters extracted`;
     uploadPreview.textContent = text.substring(0, 500) + '...';
     uploadSuccess.classList.add('visible');
     truncationWarning.classList.toggle('visible', truncated);
-  };
-  reader.onerror = () => {
+  } catch (err) {
     uploadSpinner.classList.remove('visible');
+    if (spinnerText) spinnerText.textContent = 'Extracting text...';
     uploadZone.style.display = '';
-    showError('Error reading file.');
-  };
-  reader.readAsText(file);
+    fileInput.value = '';
+    showError('Error reading file: ' + (err.message || err));
+  }
 }
 
 // ==========================================

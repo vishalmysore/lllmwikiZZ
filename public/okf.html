@@ -106,11 +106,12 @@
         is a minimal, open way to represent knowledge as a directory of markdown files. No SDK, no schema registry — <code>git clone</code> and <code>cat</code> are enough.
       </p>
       <ul>
-        <li>Each <code>&lt;concept&gt;.md</code> = YAML frontmatter (required <code>type</code>, plus <code>title</code> / <code>description</code> / <code>tags</code> / <code>timestamp</code>) + a markdown body.</li>
+        <li>Each <code>&lt;concept&gt;.md</code> = YAML frontmatter (required <code>type</code>, plus <code>id</code> / <code>title</code> / <code>description</code> / <code>tags</code> / <code>timestamp</code>) + a markdown body.</li>
+        <li><code>id</code> is the bundle-relative path (e.g. <code>my-bundle/my-concept</code>) so agents can route the graph deterministically.</li>
         <li>Optional body headings: <code># Schema</code>, <code># Examples</code>, <code># Citations</code>.</li>
         <li><code>index.md</code> lists the concepts; the root one declares <code>okf_version</code>.</li>
         <li><code>log.md</code> records changes, newest date first.</li>
-        <li>Cross-links: bundle-absolute <code>/other.md</code> or relative markdown paths.</li>
+        <li>Cross-links: bundle-absolute <code>/other.md</code>, or <code>[[bundle/concept]]</code> wiki-links for agent traversal.</li>
       </ul>
     </section>
 
@@ -182,10 +183,10 @@
       <div id="upload-zone" class="upload-zone">
         <div class="upload-zone-content">
           <div class="upload-icon">📄</div>
-          <div class="upload-text"><strong>Drop a text or markdown file here</strong> or click to browse</div>
-          <div class="upload-hint">TXT, MD only (up to 10 MB)</div>
+          <div class="upload-text"><strong>Drop a PDF, text, or markdown file here</strong> or click to browse</div>
+          <div class="upload-hint">PDF, TXT, MD (up to 10 MB)</div>
         </div>
-        <input type="file" id="file-input" class="upload-input" accept=".txt,.md,text/plain,text/markdown">
+        <input type="file" id="file-input" class="upload-input" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf">
       </div>
 
       <div id="upload-success" class="upload-success">

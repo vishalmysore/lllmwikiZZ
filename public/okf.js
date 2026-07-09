@@ -10,6 +10,8 @@
  * Both feed the same deterministic OKF serializer, so the output is always spec-conformant.
  */
 
+import { isPdf, extractPdfText } from './pdf-extract.js';
+
 // ==========================================
 // Providers (mirrors app.js so this page stands alone)
 // ==========================================
@@ -154,16 +156,31 @@ function bindEvents() {
 // ==========================================
 // File upload
 // ==========================================
-function handleFileUpload(file) {
+async function handleFileUpload(file) {
   dismissError();
   const isText = file.type === 'text/plain' || file.type === 'text/markdown' ||
                  file.name.endsWith('.md') || file.name.endsWith('.txt');
-  if (!isText) return showError('Only TXT and MD files are supported.');
+  if (!isText && !isPdf(file)) return showError('Only PDF, TXT and MD files are supported.');
   if (file.size > 10 * 1024 * 1024) return showError('File must be under 10MB.');
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    let text = e.target.result;
+  try {
+    let text;
+    if (isPdf(file)) {
+      uploadFilename.textContent = `📎 ${file.name}`;
+      uploadMeta.textContent = 'Extracting text from PDF…';
+      uploadZone.style.display = 'none';
+      uploadSuccess.classList.add('visible');
+      const buf = await file.arrayBuffer();
+      text = await extractPdfText(buf, { onProgress: (p, t) => {
+        uploadMeta.textContent = `Extracting text from PDF… page ${p}/${t}`;
+      }});
+      if (!text || text.length < 20) {
+        throw new Error('Could not extract text — this PDF may be scanned/image-only.');
+      }
+    } else {
+      text = await file.text();
+    }
+
     if (text.length > 30000) text = text.substring(0, 30000);
     currentDocumentText = text;
     currentFilename = file.name;
@@ -172,11 +189,14 @@ function handleFileUpload(file) {
     uploadMeta.textContent = `${text.length.toLocaleString()} characters`;
     uploadSuccess.classList.add('visible');
     if (!bundleNameInput.value.trim()) {
-      bundleNameInput.value = slugify(file.name.replace(/\.(md|txt)$/i, '')) || 'knowledge-bundle';
+      bundleNameInput.value = slugify(file.name.replace(/\.(md|txt|pdf)$/i, '')) || 'knowledge-bundle';
     }
-  };
-  reader.onerror = () => showError('Error reading file.');
-  reader.readAsText(file);
+  } catch (err) {
+    uploadSuccess.classList.remove('visible');
+    uploadZone.style.display = '';
+    fileInput.value = '';
+    showError('Error reading file: ' + (err.message || err));
+  }
 }
 
 // ==========================================
@@ -198,7 +218,7 @@ async function buildBundle(mode) {
       concepts = conceptsFromHeadings(currentDocumentText);
       method = 'heading-split (client-side)';
     } else {
-      concepts = await conceptsFromLLM(currentDocumentText);
+      concepts = await conceptsFromLLM(currentDocumentText, bundleName);
       method = `LLM extraction (${providerSelect.value})`;
     }
     if (!concepts.length) throw new Error('No concepts could be extracted from this document.');
@@ -267,27 +287,27 @@ function conceptsFromHeadings(text) {
 // ==========================================
 // Smart Build — ask an LLM for concepts as JSON
 // ==========================================
-async function conceptsFromLLM(text) {
+async function conceptsFromLLM(text, bundleName) {
   const isWebLLM = providerSelect.value === 'webllm';
   const apiKey   = apiKeyInput.value.trim();
   if (!isWebLLM && !apiKey) throw new Error('Please enter your API key (or switch to WebLLM / Quick Build).');
   if (isWebLLM && webllmStatus !== 'ready') throw new Error('Please load a WebLLM model first.');
 
+  // Instructions live OUTSIDE the JSON template so the model is less likely to
+  // echo a schema hint (e.g. the "type" placeholder) back as a literal value.
   const system = `You convert a document into an Open Knowledge Format (OKF) bundle.
 Break the document into 3 to 8 distinct, self-contained CONCEPTS.
-Return ONLY a JSON object, no markdown fencing, with this exact shape:
-{
-  "concepts": [
-    {
-      "slug": "kebab-case-filename-without-extension",
-      "type": "Concept type, e.g. Playbook, Entity, Process, Reference",
-      "title": "Human readable title",
-      "description": "One sentence summary.",
-      "tags": ["tag1", "tag2"],
-      "body": "Markdown body. You MAY use headings: # Schema, # Examples, # Citations. To link another concept use /other-slug.md"
-    }
-  ]
-}`;
+
+Field rules for each concept:
+- "type": a SINGLE concrete category, ONE or TWO words only, such as Entity, Reference, Process, Playbook, Event, or Person. Never a sentence, never a list, never contains "e.g." or commas.
+- "slug": kebab-case filename, no extension.
+- "title": short human-readable title.
+- "description": one sentence.
+- "tags": array of short keywords.
+- "body": markdown. You MAY use the headings # Schema, # Examples, # Citations. To cross-link another concept, use wiki-link syntax [[${bundleName}/other-slug]] so an agent can traverse the graph.
+
+Return ONLY a JSON object (no markdown fencing) of the form:
+{"concepts":[{"type":"","slug":"","title":"","description":"","tags":[],"body":""}]}`;
   const user = `Document (${currentFilename}):\n${text.substring(0, 12000)}`;
 
   const providerDef = PROVIDERS.find(p => p.id === providerSelect.value);
@@ -311,7 +331,7 @@ Return ONLY a JSON object, no markdown fencing, with this exact shape:
     used.add(unique);
     return {
       slug: unique,
-      type: (c.type && String(c.type).trim()) || 'Concept',
+      type: cleanType(c.type),
       title: c.title || slug,
       description: c.description || '',
       tags: Array.isArray(c.tags) ? c.tags.map(String) : [],
@@ -331,8 +351,10 @@ function serializeOkfBundle(bundleName, concepts, method) {
   const today = now.slice(0, 10);
   const files = [];
 
-  // Concept files
+  // Concept files. Each gets an explicit bundle-relative `id` (e.g. "my-bundle/my-slug")
+  // so agents can map the graph deterministically without inferring paths from filenames.
   for (const c of concepts) {
+    c.id = `${bundleName}/${c.slug}`;
     files.push({ path: `${c.slug}.md`, content: serializeConcept(c, now) });
   }
 
@@ -374,6 +396,7 @@ ${concepts.map(c => `* [${c.title}](/${c.slug}.md) — ${c.description || 'No de
 function serializeConcept(c, timestamp) {
   const fm = ['---'];
   fm.push(`type: ${yamlScalar(c.type || 'Concept')}`);      // required, non-empty
+  if (c.id)          fm.push(`id: ${yamlScalar(c.id)}`);    // bundle-relative path for graph routing
   if (c.title)       fm.push(`title: ${yamlScalar(c.title)}`);
   if (c.description) fm.push(`description: ${yamlScalar(c.description)}`);
   if (c.tags && c.tags.length) {
@@ -650,6 +673,15 @@ function slugify(s) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
+}
+// A valid OKF `type` is a short concrete category. Reject sentences / echoed schema
+// hints (e.g. "Concept type, e.g. Playbook, Entity, ...") and fall back to "Reference".
+function cleanType(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return 'Reference';
+  if (/\be\.?g\.?\b|[,:;]/i.test(s)) return 'Reference';
+  if (s.length > 30 || s.split(/\s+/).length > 3) return 'Reference';
+  return s;
 }
 function firstSentence(text) {
   const clean = text.replace(/^#+\s.*$/gm, '').replace(/\s+/g, ' ').trim();
