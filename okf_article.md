@@ -171,3 +171,61 @@ explicitly allows producers to add custom fields, and consumers preserve unknown
 *Full bundle view:*
 
 ![Full OKF bundle output page](docs/okf/06-okf-bundle-full.png)
+
+---
+
+# Bonus: Compiling a Wiki straight from AWS Open Data (RODA → OKF)
+
+The same OKF serializer powers a second, more ambitious module: the **AWS RODA → OKF Engine**
+([`public/roda.html`](public/roda.html)). Instead of uploading a file, you browse the
+[Registry of Open Data on AWS](https://registry.opendata.aws/) anonymously, sample a public dataset's
+real structure straight from S3, and compile it into an OKF bundle — still 100% in the browser, with
+**no server, no credentials, and no proxy**.
+
+The pipeline is four client-side stages:
+
+```
+[ 1. Local Registry Index ]  fuzzy-search a static RODA catalog
+   └─► [ 2. Unauthenticated S3 Fetcher ]  anonymous fetch() of the bucket listing + README
+        └─► [ 3. WebLLM Smart Builder ]   optional WebGPU concept extraction (Blob-URL worker)
+             └─► [ 4. Deterministic OKF Serializer ]  in-memory .zip
+```
+
+## Step 1 — Search the catalog
+
+A curated `roda_catalog.json` (real bucket names and regions pulled from the
+[open-data-registry](https://github.com/awslabs/open-data-registry)) is fuzzy-searched client-side.
+Here, typing *"climate"* surfaces NOAA GHCN-D, NASA NEX, MUR SST, and CMIP6:
+
+![RODA catalog search filtered to climate datasets](docs/okf/07-roda-catalog.png)
+
+## Step 2 — Explore the bucket (anonymous S3)
+
+Selecting NOAA GHCN-D and clicking **Explore bucket** issues a plain, unsigned browser `fetch()` to
+`https://noaa-ghcn-pds.s3.us-east-1.amazonaws.com/?list-type=2` — public AWS buckets return
+`Access-Control-Allow-Origin: *`, so the XML listing is parsed with `DOMParser` and the `readme.txt`
+is pulled directly. No AWS SDK, no signing, no backend:
+
+![Live anonymous S3 listing and README for the NOAA bucket](docs/okf/08-roda-explore.png)
+
+## Step 3 — Compile the OKF bundle
+
+**Quick Build** turns the dataset metadata + the live S3 object layout + the upstream README into a
+deterministic OKF concept graph — an `overview` (Reference), an `access` **Playbook** with ready-to-run
+AWS CLI / boto3 / curl snippets, a `structure` **Schema** sampled from the live `list-objects-v2` call,
+and the source README — all cross-linked with `[[bundle/concept]]` wiki-links and packaged as a valid
+`.zip`:
+
+![Compiled OKF bundle from the NOAA RODA dataset](docs/okf/09-roda-bundle.png)
+
+The result is a portable, agent-ready knowledge bundle describing a real petabyte-scale open dataset —
+built entirely from a static web page.
+
+### Design notes
+
+- **No COOP/COEP dependency.** This page deliberately does *not* register the COI service worker. S3
+  CORS fetches work without cross-origin isolation, and the WebLLM worker is started from a same-origin
+  **Blob URL** — so it runs gracefully on any static host.
+- **Shared core.** Both the OKF Wiki Builder and the RODA engine import the same `okf-core.js`
+  serializer, so a concept file compiled from a NOAA bucket is byte-structurally identical to one built
+  from an uploaded PDF.

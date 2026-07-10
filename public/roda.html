@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS RODA → OKF Engine — Compile open datasets into Knowledge Bundles</title>
+  <meta name="description" content="Browse the AWS Registry of Open Data anonymously, fetch public S3 dataset structure in your browser, and compile it into a spec-conformant Open Knowledge Format (OKF) bundle. 100% client-side.">
+  <link rel="stylesheet" href="style.css">
+  <!--
+    Note: this page intentionally does NOT register the COI service worker.
+    The RODA engine is designed to run on plain static hosts with no COOP/COEP:
+    S3 buckets return Access-Control-Allow-Origin:* (CORS fetch works), and the
+    WebLLM worker is started from a same-origin Blob URL.
+  -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
+  <style>
+    .top-nav { display:flex; gap:10px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+    .top-nav a { padding:7px 16px; border-radius:999px; text-decoration:none; font-size:0.85em;
+      color:var(--text-secondary); border:1px solid var(--border-medium); background:rgba(255,255,255,0.03); transition:all var(--transition-fast); }
+    .top-nav a:hover { color:var(--text-primary); border-color:var(--border-focus); }
+    .top-nav a.active { color:#fff; border-color:transparent; background:var(--gradient-primary); }
+
+    .roda-search { width:100%; }
+    #results { display:flex; flex-direction:column; gap:10px; margin-top:14px; max-height:460px; overflow:auto; }
+    .roda-result { text-align:left; background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md);
+      padding:14px 16px; cursor:pointer; transition:all var(--transition-fast); color:var(--text-primary); }
+    .roda-result:hover { border-color:var(--border-focus); background:var(--bg-card-hover); }
+    .roda-result-name { font-weight:600; margin-bottom:4px; }
+    .roda-result-desc { font-size:0.85em; color:var(--text-secondary); line-height:1.5; }
+    .roda-result-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+    .roda-result-bucket { margin-top:8px; font-family:var(--font-mono); font-size:0.75em; color:var(--text-muted); }
+    .roda-tag { font-size:0.72em; padding:2px 8px; border-radius:999px; background:rgba(139,92,246,0.15); color:var(--text-accent); }
+    .roda-empty { color:var(--text-muted); font-size:0.9em; }
+
+    #detail-tags { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+    .roda-bucket-line { font-family:var(--font-mono); font-size:0.82em; color:var(--text-accent);
+      background:var(--bg-input); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:8px 12px; margin:12px 0; display:inline-block; }
+    #explore-status { font-size:0.82em; color:var(--text-secondary); margin-left:12px; }
+    #listing-box { font-family:var(--font-mono); font-size:0.78em; background:var(--bg-input); border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md); padding:12px 14px; margin-top:12px; max-height:280px; overflow:auto; }
+    .roda-file { white-space:pre-wrap; word-break:break-all; padding:1px 0; color:var(--text-secondary); }
+    .roda-size { color:var(--text-muted); }
+    .roda-muted { color:var(--text-muted); }
+    .roda-readme-title { font-size:0.82em; color:var(--text-secondary); margin-top:14px; }
+    .roda-readme { font-family:var(--font-mono); font-size:0.75em; background:var(--bg-input); border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md); padding:12px 14px; margin-top:6px; max-height:220px; overflow:auto; white-space:pre-wrap; color:var(--text-muted); }
+
+    .build-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; }
+    .build-row .btn-primary, .build-row .btn-secondary { width:auto; }
+    .build-hint { font-size:0.82em; color:var(--text-muted); margin-top:10px; }
+
+    .okf-tree { font-family:var(--font-mono); font-size:0.85em; background:var(--bg-input); border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md); padding:14px 16px; margin-bottom:18px; color:var(--text-secondary); overflow-x:auto; }
+    .okf-tree-root { color:var(--text-accent); font-weight:600; display:block; margin-bottom:4px; }
+    .okf-tree-item { white-space:pre; }
+    .okf-file-card { background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); margin-bottom:16px; overflow:hidden; }
+    .okf-file-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px;
+      background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border-subtle); }
+    .okf-file-name { font-family:var(--font-mono); font-size:0.85em; color:var(--text-primary); }
+    .okf-file-actions { display:flex; gap:8px; }
+    .okf-file-body { margin:0; padding:14px 16px; font-family:var(--font-mono); font-size:0.8em; line-height:1.6;
+      color:var(--text-secondary); white-space:pre-wrap; word-break:break-word; max-height:420px; overflow:auto; }
+    .pipeline { font-family:var(--font-mono); font-size:0.8em; color:var(--text-secondary); line-height:1.7; }
+    .pipeline b { color:var(--text-accent); }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+
+    <nav class="top-nav">
+      <a href="index.html">🧠 WikiZZ</a>
+      <a href="okf.html">📚 OKF Wiki Builder</a>
+      <a href="roda.html" class="active">🛰️ AWS RODA → OKF</a>
+    </nav>
+
+    <header class="app-header">
+      <div class="logo-wrapper">
+        <div class="logo-icon">🛰️</div>
+        <h1 class="logo-text">AWS RODA <span>→ OKF</span></h1>
+      </div>
+      <p class="tagline">
+        Browse the <strong>Registry of Open Data on AWS</strong> anonymously, sample a public dataset's
+        structure straight from S3, and compile it into an <strong>Open Knowledge Format</strong> bundle —
+        100% in your browser, no server, no credentials.
+      </p>
+    </header>
+
+    <div id="error-banner" class="error-banner" role="alert">
+      <span class="error-banner-icon">⚠️</span>
+      <span id="error-text" class="error-banner-text"></span>
+      <button class="error-dismiss" onclick="dismissError()" aria-label="Dismiss error">✕</button>
+    </div>
+
+    <!-- Pipeline explainer -->
+    <section class="step-card" style="background:var(--surface-plain);">
+      <h2 class="step-title" style="font-size:1.05em; margin-bottom:10px;">🛰️ How it works</h2>
+      <div class="pipeline">
+        [ <b>1. Local Registry Index</b> ] fuzzy-search a static RODA catalog<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;└─► [ <b>2. Unauthenticated S3 Fetcher</b> ] anonymous <code>fetch()</code> of bucket listing + README<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─► [ <b>3. WebLLM Smart Builder</b> ] optional WebGPU concept extraction<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─► [ <b>4. Deterministic OKF Serializer</b> ] in-memory <code>.zip</code>
+      </div>
+    </section>
+
+    <!-- Step 1: Search -->
+    <section class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <h2 class="step-title">Search the RODA Catalog</h2>
+      </div>
+      <input type="text" class="form-input roda-search" id="search-input" placeholder="e.g. climate, genomics, satellite, NOAA…" autocomplete="off">
+      <div id="results"></div>
+    </section>
+
+    <!-- Step 2: Dataset detail + S3 explore -->
+    <section class="step-card" id="dataset-detail" style="display:none;">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <h2 class="step-title" id="detail-name">Dataset</h2>
+      </div>
+      <p id="detail-desc" style="color:var(--text-secondary); line-height:1.6;"></p>
+      <div id="detail-tags"></div>
+      <div class="roda-bucket-line" id="detail-bucket"></div>
+      <div>
+        <button class="btn-secondary" id="explore-btn" type="button" style="width:auto;">🔌 Explore bucket (anonymous S3)</button>
+        <span id="explore-status"></span>
+      </div>
+      <div id="profile-box" style="display:none;">
+        <div id="listing-box"></div>
+        <div id="readme-box"></div>
+      </div>
+    </section>
+
+    <!-- Step 3: Build -->
+    <section class="step-card" id="build-step" style="display:none;">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <h2 class="step-title">Compile OKF Bundle</h2>
+      </div>
+
+      <details style="margin-bottom:14px;">
+        <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9em;">⚙️ LLM provider (only for Smart Build)</summary>
+        <div style="margin-top:12px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="provider-select">Provider</label>
+              <select class="form-select" id="provider-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="model-select">Model</label>
+              <select class="form-select" id="model-select"></select>
+            </div>
+          </div>
+          <div id="cloud-api-section">
+            <div class="form-group">
+              <label class="form-label" for="api-key">API Key</label>
+              <div class="password-wrapper">
+                <input type="password" class="form-input" id="api-key" placeholder="Paste your API key — never stored server-side" autocomplete="off">
+                <button class="password-toggle" id="toggle-key-vis" type="button" aria-label="Toggle key visibility">👁</button>
+              </div>
+            </div>
+            <input type="hidden" id="proxy-url">
+          </div>
+          <div id="webllm-section" style="display:none;">
+            <p style="font-size:0.88em; opacity:0.8; margin-bottom:10px;">
+              Runs in-browser via WebGPU (Chrome 113+). The worker is started from a Blob URL — no COOP/COEP needed.
+            </p>
+            <button class="btn-secondary" id="load-model-btn" type="button" style="width:auto;">⬇ Load Model</button>
+            <span id="webllm-status" style="margin-left:12px; font-size:0.85em; opacity:0.7;"></span>
+            <div id="webllm-progress-bar-wrap" style="display:none; margin-top:10px;">
+              <div style="background:rgba(255,255,255,0.1); border-radius:4px; height:6px; overflow:hidden;">
+                <div id="webllm-progress-bar" style="height:100%; width:0%; background:#6366f1; transition:width 0.3s;"></div>
+              </div>
+              <div id="webllm-progress-text" style="font-size:0.78em; opacity:0.65; margin-top:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="form-group">
+        <label class="form-label" for="bundle-name">Bundle name (directory)</label>
+        <input type="text" class="form-input" id="bundle-name" placeholder="dataset-id">
+      </div>
+
+      <div class="build-row">
+        <button class="btn-secondary" id="quick-build-btn" type="button">⚡ Quick Build (deterministic profiler)</button>
+        <button class="btn-primary" id="smart-build-btn" type="button"><span class="btn-text">✨ Smart Build (LLM)</span></button>
+      </div>
+      <p class="build-hint">
+        <strong>Quick Build</strong> compiles the dataset metadata + live S3 object layout + README into a
+        conformant OKF graph — instant, offline. <strong>Smart Build</strong> adds LLM-extracted concepts.
+      </p>
+    </section>
+
+    <!-- Bundle output -->
+    <section class="step-card" id="bundle-section" style="display:none;">
+      <div class="step-header">
+        <div class="step-number">✓</div>
+        <h2 class="step-title">Your OKF Bundle</h2>
+      </div>
+      <div style="margin-bottom:18px;">
+        <button class="btn-primary" id="download-zip-btn" type="button" style="width:auto;">⬇ Download bundle (.zip)</button>
+      </div>
+      <div id="bundle-output"></div>
+    </section>
+
+  </div>
+
+  <script type="module" src="roda.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+{
+  "generated": "2026-07-10",
+  "source": "AWS Registry of Open Data (https://github.com/awslabs/open-data-registry)",
+  "note": "Curated subset of high-value public datasets. Buckets are anonymously readable (Access-Control-Allow-Origin: *).",
+  "datasets": [
+    {
+      "id": "noaa-ghcn",
+      "name": "NOAA Global Historical Climatology Network Daily (GHCN-D)",
+      "description": "Daily land surface climate observations (temperature, precipitation, snow) from tens of thousands of stations worldwide, spanning over a century.",
+      "bucket": "noaa-ghcn-pds",
+      "region": "us-east-1",
+      "prefix": "",
+      "readme": "readme.txt",
+      "tags": ["climate", "weather", "noaa", "timeseries", "earth-observation"]
+    },
+    {
+      "id": "sentinel-2-cogs",
+      "name": "Sentinel-2 Cloud-Optimized GeoTIFFs",
+      "description": "Global multispectral satellite imagery from ESA's Sentinel-2 mission, converted to Cloud-Optimized GeoTIFFs for efficient partial reads.",
+      "bucket": "e84-earth-search-sentinel-data",
+      "region": "us-west-2",
+      "prefix": "",
+      "readme": "",
+      "tags": ["satellite", "geospatial", "imagery", "sentinel", "earth-observation"]
+    },
+    {
+      "id": "1000-genomes",
+      "name": "1000 Genomes Project",
+      "description": "A deep catalog of human genetic variation: whole-genome sequencing data for thousands of individuals across global populations.",
+      "bucket": "1000genomes",
+      "region": "us-east-1",
+      "prefix": "",
+      "readme": "README.analysis_history",
+      "tags": ["genomics", "life-sciences", "human", "variation", "bioinformatics"]
+    },
+    {
+      "id": "nasa-nex",
+      "name": "NASA Earth Exchange (NEX) Data Collection",
+      "description": "Downscaled climate projections and Earth science model outputs from NASA NEX, including NEX-GDDP and NEX-DCP30.",
+      "bucket": "nasa-nex",
+      "region": "us-west-2",
+      "prefix": "NEX-GDDP/",
+      "readme": "",
+      "tags": ["climate", "nasa", "projections", "earth-science"]
+    },
+    {
+      "id": "mur-sst",
+      "name": "Multi-Scale Ultra High Resolution (MUR) Sea Surface Temperature",
+      "description": "Global, gap-free, high-resolution sea surface temperature analysis stored as Zarr for cloud-native access.",
+      "bucket": "mur-sst",
+      "region": "us-west-2",
+      "prefix": "zarr-v1/",
+      "readme": "",
+      "tags": ["ocean", "sst", "climate", "zarr", "earth-observation"]
+    },
+    {
+      "id": "gbif",
+      "name": "Global Biodiversity Information Facility (GBIF) Occurrences",
+      "description": "Hundreds of millions of species occurrence records aggregated from museums, citizen science, and research collections worldwide.",
+      "bucket": "gbif-open-data-eu-central-1",
+      "region": "eu-central-1",
+      "prefix": "occurrence/",
+      "readme": "",
+      "tags": ["biodiversity", "species", "ecology", "occurrences", "life-sciences"]
+    },
+    {
+      "id": "commoncrawl",
+      "name": "Common Crawl",
+      "description": "A petabyte-scale corpus of web crawl data (WARC/WAT/WET) collected monthly, widely used to train large language models.",
+      "bucket": "commoncrawl",
+      "region": "us-east-1",
+      "prefix": "crawl-data/",
+      "readme": "",
+      "tags": ["web", "nlp", "text-corpus", "machine-learning", "crawl"]
+    },
+    {
+      "id": "openaq",
+      "name": "OpenAQ Air Quality Archive",
+      "description": "Aggregated open air-quality measurements (PM2.5, PM10, NO2, O3, and more) from government and research monitoring stations globally.",
+      "bucket": "openaq-data-archive",
+      "region": "us-east-1",
+      "prefix": "records/",
+      "readme": "",
+      "tags": ["air-quality", "environment", "sensors", "timeseries", "health"]
+    },
+    {
+      "id": "cmip6",
+      "name": "Coupled Model Intercomparison Project 6 (CMIP6)",
+      "description": "Global climate model output from CMIP6, stored as analysis-ready Zarr for the WCRP climate projection archive.",
+      "bucket": "cmip6-pds",
+      "region": "us-west-2",
+      "prefix": "CMIP6/",
+      "readme": "",
+      "tags": ["climate", "modeling", "zarr", "projections", "earth-science"]
+    },
+    {
+      "id": "esa-worldcover",
+      "name": "ESA WorldCover",
+      "description": "Global land cover maps at 10 m resolution derived from Sentinel-1 and Sentinel-2, classifying the Earth's surface into land-cover types.",
+      "bucket": "esa-worldcover",
+      "region": "eu-central-1",
+      "prefix": "",
+      "readme": "",
+      "tags": ["landcover", "geospatial", "esa", "sentinel", "earth-observation"]
+    },
+    {
+      "id": "noaa-gfs",
+      "name": "NOAA Global Forecast System (GFS)",
+      "description": "Operational global numerical weather prediction output from the NOAA GFS model, covering the whole atmosphere at regular forecast steps.",
+      "bucket": "noaa-gfs-bdp-pds",
+      "region": "us-east-1",
+      "prefix": "",
+      "readme": "",
+      "tags": ["weather", "forecast", "noaa", "grib", "atmosphere"]
+    },
+    {
+      "id": "amazon-berkeley-objects",
+      "name": "Amazon Berkeley Objects (ABO)",
+      "description": "A dataset of product listings with rich metadata, catalog images, and 3D models — designed for computer vision and e-commerce research.",
+      "bucket": "amazon-berkeley-objects",
+      "region": "us-east-1",
+      "prefix": "",
+      "readme": "",
+      "tags": ["computer-vision", "3d", "ecommerce", "products", "machine-learning"]
+    }
+  ]
+}
