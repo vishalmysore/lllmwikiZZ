@@ -112,13 +112,25 @@ function renderResults(query) {
     return { d, score };
   }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
 
-  els['results'].innerHTML = scored.map(({ d }) => `
-    <button class="roda-result" data-id="${d.id}" type="button">
+  if (!scored.length) {
+    els['results'].innerHTML = `<p class="roda-empty">No datasets match "${escapeHtml(query)}".</p>`;
+    return;
+  }
+
+  // The full catalog can hold 1000+ datasets — render at most CAP cards for a snappy UI.
+  const CAP = 60;
+  const shown = scored.slice(0, CAP);
+  const more = scored.length - shown.length;
+  const count = `<div class="roda-count">${scored.length} dataset${scored.length === 1 ? '' : 's'} ${
+    query.trim() ? `match “${escapeHtml(query)}”` : 'in catalog'}${more > 0 ? ` — showing first ${CAP}, refine to narrow` : ''}</div>`;
+
+  els['results'].innerHTML = count + shown.map(({ d }) => `
+    <button class="roda-result" data-id="${escapeHtml(d.id)}" type="button">
       <div class="roda-result-name">${escapeHtml(d.name)}</div>
       <div class="roda-result-desc">${escapeHtml(d.description)}</div>
       <div class="roda-result-tags">${(d.tags || []).map(t => `<span class="roda-tag">${escapeHtml(t)}</span>`).join('')}</div>
       <div class="roda-result-bucket">s3://${escapeHtml(d.bucket)} · ${escapeHtml(d.region)}</div>
-    </button>`).join('') || `<p class="roda-empty">No datasets match "${escapeHtml(query)}".</p>`;
+    </button>`).join('');
 
   els['results'].querySelectorAll('.roda-result').forEach(b =>
     b.addEventListener('click', () => selectDataset(b.dataset.id)));
@@ -176,21 +188,26 @@ async function exploreBucket() {
     showError(`Could not list the bucket in-browser (${e.message}). You can still build from catalog metadata.`);
   }
 
-  // 2. Best-effort README / metadata fetch
-  const candidates = [selected.readme, 'README.md', 'readme.md', 'README.txt', 'readme.txt', 'index.html']
-    .filter(Boolean);
-  for (const name of candidates) {
+  // 2. README / metadata — pick from the ACTUAL listing (avoids blind 404 probing).
+  let readmeKey = selected.readme || '';
+  if (!readmeKey) {
+    const keys = profileData.listing.map(o => o.key);
+    readmeKey =
+      keys.find(k => /^readme(\.md|\.txt)?$/i.test(k)) ||          // readme / readme.md / readme.txt
+      keys.find(k => /(^|\/)readme[^/]*\.(md|txt)$/i.test(k)) ||   // readme-*.md/.txt
+      keys.find(k => /^[^/]*\.md$/i.test(k)) || '';                // any top-level .md
+  }
+  if (readmeKey) {
     try {
-      const r = await fetch(`${endpoint}/${name}`);
+      const r = await fetch(`${endpoint}/${readmeKey}`);
       if (r.ok) {
         const txt = await r.text();
         if (txt && txt.length > 40 && !/<Error>/.test(txt)) {
           profileData.readme = txt.slice(0, 8000);
-          profileData.readmeName = name;
-          break;
+          profileData.readmeName = readmeKey;
         }
       }
-    } catch (_) { /* CORS or 404 — ignore, try next */ }
+    } catch (_) { /* CORS or 404 — ignore */ }
   }
 
   profile = profileData;

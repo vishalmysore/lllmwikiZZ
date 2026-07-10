@@ -1,0 +1,42 @@
+name: Update RODA catalog
+
+# Regenerates public/roda_catalog.json from the AWS Registry of Open Data.
+# Runs entirely on GitHub's runners (build time) — nothing runs on the site at
+# runtime, so the deployed page stays 100% static.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # every Monday 06:17 UTC
+  workflow_dispatch:        # manual "Run workflow" button
+
+permissions:
+  contents: write           # allow the bot to commit the regenerated catalog
+
+concurrency:
+  group: update-roda-catalog
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Regenerate catalog
+        run: node scripts/build-roda-catalog.mjs
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- public/roda_catalog.json; then
+            echo "No catalog changes."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/roda_catalog.json
+            git commit -m "chore: refresh RODA catalog from open-data registry"
+            git push
+          fi
