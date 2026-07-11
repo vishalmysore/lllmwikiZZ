@@ -1,9 +1,26 @@
-# Building a Wiki in OKF Format — Right in Your Browser
+# Beyond RAG: How to Build Serverless AI Wikis with OKF and AWS RODA Straight in Your Browser
 
-> A walkthrough of the **OKF Wiki Builder**, a new module in LLM WikiZZ that turns any
-> document (PDF, Markdown, or plain text) into a spec-conformant
-> [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
-> knowledge bundle — with **zero server** and **no build step**.
+For the last three years, the knee-jerk reaction to any enterprise AI context problem was automated:
+"Just build a RAG pipeline." But as we move deeper into 2026, the structural cracks of the
+"RAG-everything" approach have become too wide to ignore. Relying on probabilistic vector databases to
+guess high-stakes business rules or code schemas is a recipe for hallucinations and broken deployments.
+
+To solve this, a massive architectural shift is underway toward deterministic, human-and-agent-readable
+data formats—and it's happening entirely client-side.
+
+Enter **LLM WikiZZ**, an open-source tool changing the game by introducing the **OKF Wiki Builder** and
+**AWS RODA → OKF Engine**. By leveraging Google Cloud's open-source
+[Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md),
+this tool completely replaces expensive, black-box infrastructure with portable, git-native knowledge
+bundles consisting of nothing but clean Markdown and YAML frontmatter.
+
+Even better? It bridges this local precision with global scale by integrating directly with the
+**Registry of Open Data on AWS (RODA)**. Running 100% in your browser via local WebLLM, you can now parse
+massive open cloud datasets anonymously, extract core schemas, and compile spec-conformant OKF knowledge
+graphs into downloadable zip bundles with zero servers, zero API keys, and zero configuration.
+
+Here is how LLM WikiZZ is combining OKF and AWS RODA to build a predictable, deterministic, and entirely
+free ecosystem for autonomous AI agents—straight from a static webpage.
 
 ---
 
