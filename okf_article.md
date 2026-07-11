@@ -206,6 +206,28 @@ static. Here, typing *"climate"* matches 237 datasets (top 60 shown):
 > directly. A GitHub Actions runner is a server, so it reads the index with no CORS restriction and bakes
 > a static catalog into the repo — full coverage, still zero-server at runtime.
 
+### Describe what you want — AI picks the dataset
+
+Keyword search only helps if you already know the vocabulary. The **✨ Recommend a dataset with AI**
+button closes that gap with a two-stage retrieval that runs entirely in the browser:
+
+1. **Prefilter (local, instant).** A synonym-expanded lexical match shortlists ~24 candidate datasets —
+   so *"how hot are the oceans getting"* expands to *sea surface temperature* and surfaces the MUR SST
+   datasets even though the query shares no words with them.
+2. **LLM re-rank.** Only those candidates (never the full ~1,100-dataset catalog, which wouldn't fit a
+   small model's context window) are handed to WebLLM or a cloud model, which returns the best 1–3 with
+   a one-line reason. Selecting a suggestion drops you straight into the Explore → Compile flow.
+
+Verified prefilter behaviour — the LLM then ranks these shortlists:
+
+| You type | Prefilter surfaces (top candidates) |
+|---|---|
+| how hot are the oceans getting | MUR / GHRSST **Sea Surface Temperature** |
+| satellite imagery of european farmland | Sentinel-1 / Sentinel-2 / Sentinel-3 |
+| human dna variation across populations | 1000 Genomes + human-genome datasets |
+| air pollution in cities | OpenAQ, CMAQ air quality, PM2.5 |
+| train a language model on web text | Common Crawl, ParaCrawl web corpora |
+
 ## Step 2 — Explore the bucket (anonymous S3)
 
 Selecting NOAA GHCN-D and clicking **Explore bucket** issues a plain, unsigned browser `fetch()` to

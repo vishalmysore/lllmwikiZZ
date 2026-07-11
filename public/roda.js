@@ -59,6 +59,7 @@ async function init() {
     'load-model-btn','webllm-status','webllm-progress-bar-wrap','webllm-progress-bar','webllm-progress-text',
     'proxy-url','bundle-name','quick-build-btn','smart-build-btn','bundle-section','bundle-output',
     'download-zip-btn','error-banner','error-text','build-step',
+    'recommend-btn','recommend-status','suggestions',
   ].forEach(id => els[id] = document.getElementById(id));
 
   els['provider-select'].innerHTML = PROVIDERS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
@@ -82,6 +83,8 @@ async function loadCatalog() {
 
 function bindEvents() {
   els['search-input'].addEventListener('input', () => renderResults(els['search-input'].value));
+  els['recommend-btn'].addEventListener('click', recommend);
+  els['search-input'].addEventListener('keydown', (e) => { if (e.key === 'Enter') recommend(); });
   els['explore-btn'].addEventListener('click', exploreBucket);
   els['provider-select'].addEventListener('change', () => { updateModels(); updateProviderUI(); });
   els['toggle-key-vis'].addEventListener('click', () => {
@@ -133,6 +136,125 @@ function renderResults(query) {
     </button>`).join('');
 
   els['results'].querySelectorAll('.roda-result').forEach(b =>
+    b.addEventListener('click', () => selectDataset(b.dataset.id)));
+}
+
+// ---------- Component 1b: AI dataset recommender (prefilter → LLM re-rank) ----------
+// Small synonym groups widen lexical recall so natural-language queries reach the
+// right vocabulary (e.g. "oceans getting hot" -> "sea surface temperature").
+const SYNONYMS = [
+  ['ocean', 'oceans', 'sea', 'marine', 'sst', 'sea surface temperature', 'coastal'],
+  ['climate', 'weather', 'temperature', 'warming', 'atmospheric', 'forecast'],
+  ['genome', 'genomic', 'genomics', 'dna', 'genetic', 'sequencing', 'variant', 'vcf'],
+  ['satellite', 'imagery', 'geospatial', 'earth observation', 'remote sensing', 'landsat', 'sentinel', 'raster'],
+  ['air', 'pollution', 'air quality', 'emissions', 'pm2.5', 'aerosol'],
+  ['biodiversity', 'species', 'ecology', 'wildlife', 'occurrence'],
+  ['web', 'text', 'nlp', 'language', 'crawl', 'corpus'],
+  ['traffic', 'transport', 'mobility', 'taxi', 'vehicle'],
+  ['health', 'medical', 'clinical', 'disease', 'healthcare'],
+  ['finance', 'economic', 'economy', 'trade', 'market'],
+  ['agriculture', 'crop', 'farm', 'farming', 'soil', 'vegetation'],
+  ['land', 'landcover', 'land cover', 'terrain', 'elevation'],
+  ['flood', 'disaster', 'hurricane', 'wildfire', 'hazard'],
+];
+const STOP = new Set(['i','want','need','the','a','an','of','data','dataset','datasets','about','on','for',
+  'with','some','me','give','show','find','looking','look','to','and','or','in','how','is','are','get','getting','that']);
+
+function shortlist(query, limit = 24) {
+  const raw = query.toLowerCase().split(/[^a-z0-9.]+/).filter(t => t.length > 2 && !STOP.has(t));
+  const terms = new Set(raw);
+  for (const t of raw) for (const grp of SYNONYMS) if (grp.includes(t)) grp.forEach(g => terms.add(g));
+  const list = [...terms];
+
+  const scored = CATALOG.map(d => {
+    const name = d.name.toLowerCase(), desc = (d.description || '').toLowerCase(), tags = (d.tags || []).join(' ').toLowerCase();
+    let s = 0;
+    for (const t of list) {
+      if (name.includes(t)) s += 3;
+      if (tags.includes(t)) s += 3;
+      if (desc.includes(t)) s += 1;
+    }
+    return { d, s };
+  }).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
+
+  return scored.slice(0, limit).map(x => x.d);
+}
+
+// Returns an async (system, user) => {text} invoker, or throws with a helpful message.
+function getInvoke() {
+  if (window.__RODA_MOCK_LLM) return window.__RODA_MOCK_LLM; // test seam
+  const isWebLLM = els['provider-select'].value === 'webllm';
+  if (isWebLLM) {
+    if (webllmStatus !== 'ready') throw new Error('Open 🤖 LLM setup and load a WebLLM model first (or add a cloud key).');
+    return (s, u) => callWebLLM(s, u);
+  }
+  const key = els['api-key'].value.trim();
+  if (!key) throw new Error('Open 🤖 LLM setup and add an API key (or use WebLLM).');
+  const def = PROVIDERS.find(p => p.id === els['provider-select'].value);
+  return (s, u) => callCloudLLM(def, key, els['model-select'].value, s, u, 700);
+}
+
+async function recommend() {
+  dismissError();
+  const query = els['search-input'].value.trim();
+  if (!query) return showError('Type what kind of data you want first.');
+
+  let invoke;
+  try { invoke = getInvoke(); } catch (e) { els['llm-setup'] && (document.getElementById('llm-setup').open = true); return showError(e.message); }
+
+  const candidates = shortlist(query);
+  if (!candidates.length) {
+    els['suggestions'].style.display = 'none';
+    return showError('No datasets share vocabulary with that query yet — try different words, or browse the keyword results.');
+  }
+
+  els['recommend-btn'].disabled = true;
+  els['recommend-status'].textContent = '🤖 Thinking…';
+  try {
+    const system = `You help a user pick ONE AWS Open Data dataset for their need.
+From the CANDIDATES only, choose the 1–3 best and rank them. Return ONLY JSON, no prose:
+{"recommendations":[{"id":"<candidate id>","reason":"one short sentence why it fits"}]}
+Use ids exactly as given. If none fit, return {"recommendations":[]}.`;
+    const user = `Need: ${query}\n\nCANDIDATES:\n` +
+      candidates.map(d => `- ${d.id} | ${d.name} | tags: ${(d.tags || []).join(', ')} | ${d.description}`).join('\n');
+
+    const raw = (await invoke(system, user)).text || '';
+    let js = raw.trim();
+    const m = js.match(/\{[\s\S]*\}/);
+    if (m) js = m[0];
+    let parsed;
+    try { parsed = JSON.parse(js); } catch (_) { throw new Error('the model did not return valid JSON — try a stronger model.'); }
+
+    const recs = (parsed.recommendations || [])
+      .map(r => ({ d: CATALOG.find(x => x.id === r.id), reason: r.reason }))
+      .filter(x => x.d).slice(0, 3);
+
+    if (!recs.length) {
+      els['suggestions'].style.display = 'none';
+      els['recommend-status'].textContent = 'No confident match — see the keyword results below.';
+      return;
+    }
+    renderSuggestions(recs);
+    els['recommend-status'].textContent = `Suggested ${recs.length} dataset${recs.length > 1 ? 's' : ''}.`;
+  } catch (e) {
+    els['suggestions'].style.display = 'none';
+    showError('AI recommend failed: ' + (e.message || e));
+    els['recommend-status'].textContent = '';
+  } finally {
+    els['recommend-btn'].disabled = false;
+  }
+}
+
+function renderSuggestions(recs) {
+  els['suggestions'].innerHTML = `<div class="roda-sug-title">✨ AI suggestions for your query</div>` +
+    recs.map(({ d, reason }) => `
+      <button class="roda-result roda-sug" data-id="${escapeHtml(d.id)}" type="button">
+        <div class="roda-result-name">✨ ${escapeHtml(d.name)}</div>
+        <div class="roda-sug-reason">${escapeHtml(reason || '')}</div>
+        <div class="roda-result-bucket">s3://${escapeHtml(d.bucket)} · ${escapeHtml(d.region)}</div>
+      </button>`).join('');
+  els['suggestions'].style.display = 'flex';
+  els['suggestions'].querySelectorAll('.roda-result').forEach(b =>
     b.addEventListener('click', () => selectDataset(b.dataset.id)));
 }
 

@@ -32,6 +32,12 @@
     .roda-tag { font-size:0.72em; padding:2px 8px; border-radius:999px; background:rgba(139,92,246,0.15); color:var(--text-accent); }
     .roda-empty { color:var(--text-muted); font-size:0.9em; }
     .roda-count { font-size:0.8em; color:var(--text-muted); margin:10px 0 4px; }
+    .roda-recommend-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+    #recommend-status { font-size:0.82em; color:var(--text-secondary); }
+    #suggestions { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+    .roda-sug-title { font-size:0.8em; color:var(--text-accent); font-weight:600; margin-bottom:2px; }
+    .roda-sug { border-color:var(--border-focus) !important; background:var(--surface-plain) !important; }
+    .roda-sug-reason { font-size:0.85em; color:var(--text-primary); margin:6px 0; line-height:1.5; }
 
     #detail-tags { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
     .roda-bucket-line { font-family:var(--font-mono); font-size:0.82em; color:var(--text-accent);
@@ -103,45 +109,11 @@
       </div>
     </section>
 
-    <!-- Step 1: Search -->
+    <!-- Shared LLM config: powers ✨ AI Recommend (Step 1) and ✨ Smart Build (Step 3) -->
     <section class="step-card">
-      <div class="step-header">
-        <div class="step-number">1</div>
-        <h2 class="step-title">Search the RODA Catalog</h2>
-      </div>
-      <input type="text" class="form-input roda-search" id="search-input" placeholder="e.g. climate, genomics, satellite, NOAA…" autocomplete="off">
-      <div id="results"></div>
-    </section>
-
-    <!-- Step 2: Dataset detail + S3 explore -->
-    <section class="step-card" id="dataset-detail" style="display:none;">
-      <div class="step-header">
-        <div class="step-number">2</div>
-        <h2 class="step-title" id="detail-name">Dataset</h2>
-      </div>
-      <p id="detail-desc" style="color:var(--text-secondary); line-height:1.6;"></p>
-      <div id="detail-tags"></div>
-      <div class="roda-bucket-line" id="detail-bucket"></div>
-      <div>
-        <button class="btn-secondary" id="explore-btn" type="button" style="width:auto;">🔌 Explore bucket (anonymous S3)</button>
-        <span id="explore-status"></span>
-      </div>
-      <div id="profile-box" style="display:none;">
-        <div id="listing-box"></div>
-        <div id="readme-box"></div>
-      </div>
-    </section>
-
-    <!-- Step 3: Build -->
-    <section class="step-card" id="build-step" style="display:none;">
-      <div class="step-header">
-        <div class="step-number">3</div>
-        <h2 class="step-title">Compile OKF Bundle</h2>
-      </div>
-
-      <details style="margin-bottom:14px;">
-        <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9em;">⚙️ LLM provider (only for Smart Build)</summary>
-        <div style="margin-top:12px;">
+      <details id="llm-setup">
+        <summary style="cursor:pointer; color:var(--text-secondary); font-weight:600;">🤖 LLM setup <span style="font-weight:400; font-size:0.85em; color:var(--text-muted);">— optional; powers ✨ AI Recommend and ✨ Smart Build</span></summary>
+        <div style="margin-top:14px;">
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="provider-select">Provider</label>
@@ -177,6 +149,50 @@
           </div>
         </div>
       </details>
+    </section>
+
+    <!-- Step 1: Search -->
+    <section class="step-card">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <h2 class="step-title">Search the RODA Catalog</h2>
+      </div>
+      <input type="text" class="form-input roda-search" id="search-input" placeholder="Describe what you want, or type keywords — e.g. “how hot are the oceans getting”" autocomplete="off">
+      <div class="roda-recommend-row">
+        <button class="btn-secondary" id="recommend-btn" type="button" style="width:auto;">✨ Recommend a dataset with AI</button>
+        <span id="recommend-status"></span>
+      </div>
+      <div id="suggestions" style="display:none;"></div>
+      <div id="results"></div>
+    </section>
+
+    <!-- Step 2: Dataset detail + S3 explore -->
+    <section class="step-card" id="dataset-detail" style="display:none;">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <h2 class="step-title" id="detail-name">Dataset</h2>
+      </div>
+      <p id="detail-desc" style="color:var(--text-secondary); line-height:1.6;"></p>
+      <div id="detail-tags"></div>
+      <div class="roda-bucket-line" id="detail-bucket"></div>
+      <div>
+        <button class="btn-secondary" id="explore-btn" type="button" style="width:auto;">🔌 Explore bucket (anonymous S3)</button>
+        <span id="explore-status"></span>
+      </div>
+      <div id="profile-box" style="display:none;">
+        <div id="listing-box"></div>
+        <div id="readme-box"></div>
+      </div>
+    </section>
+
+    <!-- Step 3: Build -->
+    <section class="step-card" id="build-step" style="display:none;">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <h2 class="step-title">Compile OKF Bundle</h2>
+      </div>
+
+      <p class="build-hint" style="margin-top:0; margin-bottom:16px;">✨ Smart Build uses the <strong>🤖 LLM setup</strong> configured above.</p>
 
       <div class="form-group">
         <label class="form-label" for="bundle-name">Bundle name (directory)</label>
