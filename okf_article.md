@@ -218,6 +218,15 @@ button closes that gap with a two-stage retrieval that runs entirely in the brow
    small model's context window) are handed to WebLLM or a cloud model, which returns the best 1–3 with
    a one-line reason. Selecting a suggestion drops you straight into the Explore → Compile flow.
 
+Typing *"how hot are the oceans getting"* — a query that shares **no words** with the datasets — surfaces
+the sea-surface-temperature collections at the top, above the raw keyword results:
+
+![AI Recommend suggesting sea-surface-temperature datasets for a plain-language query](docs/okf/10-roda-recommend.png)
+
+*The dataset names and buckets are real prefilter output. The italic reason lines here are a visible
+placeholder from the local test harness — a live model (WebLLM or your cloud key) writes the actual
+rationale at runtime; this environment has no GPU or key to run one.*
+
 Verified prefilter behaviour — the LLM then ranks these shortlists:
 
 | You type | Prefilter surfaces (top candidates) |
